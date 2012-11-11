@@ -1,5 +1,5 @@
 safe: true
 source: pages
-destination: .
+destination: /
 lsi: false
 pygments: true
