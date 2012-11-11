@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8">
+  <title>4-f1wae.scala</title>
+  <link rel="stylesheet" href="http://jashkenas.github.com/docco/resources/docco.css">
+</head>
+<body>
+<div id='container'>
+  <div id="background"></div>
+  <div id="jump_to">
+    Jump To &hellip;
+    <div id="jump_wrapper">
+      <div id="jump_page">
+          <a class="source" href="10-gc.html">10-gc.scala</a>
+          <a class="source" href="2-ae.html">2-ae.scala</a>
+          <a class="source" href="3-wae.html">3-wae.scala</a>
+          <a class="source" href="4-f1wae.html">4-f1wae.scala</a>
+          <a class="source" href="5-fae.html">5-fae.scala</a>
+          <a class="source" href="6-lcfae.html">6-lcfae.scala</a>
+          <a class="source" href="8-rcfae.html">8-rcfae.scala</a>
+          <a class="source" href="9-bcfae.html">9-bcfae.scala</a>
+      </div>
+    </div>
+  </div>
+  <table cellspacing=0 cellpadding=0>
+  <thead>
+    <tr>
+      <th class=docs><h1>4-f1wae.scala</h1></th>
+      <th class=code></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr id='section-Adding_First-Order_Functions'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-Adding_First-Order_Functions">&#182;</a>
+        </div>
+        <h1>Adding First-Order Functions</h1>
+
+<p>These are lecture notes for the &ldquo;Programming Languages and Types&rdquo; at the 
+University of Marburg loosely based on Sec. 4 of the book <a href="http://www.cs.brown.edu/~sk/Publications/Books/ProgLangs/">&ldquo;Programming 
+Languages: Application and Interpretation&rdquo;</a> 
+by Shriram Krishnamurthi.</p>
+
+<p>Please comment/correct/improve these notes via <a href="https://github.com/klauso/PLT2012">github</a>. 
+Proposals or questions can be submitted as an &ldquo;issue&rdquo;; proposals for 
+corrections / extensions / improvements can be submitted as a &ldquo;pull request&rdquo;. 
+You can of course also send an email to Klaus Ostermann</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre></pre></div>
+      </td>
+    </tr>
+    <tr id='section-2'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-2">&#182;</a>
+        </div>
+        <p>In the last lecture we have seen how we can give commonly occuring 
+(sub)expressions a name via the <code>With</code> construct. However, often we can 
+identify <em>patterns</em> of expressions that occur in many places, such as <code>5*5/2</code>, 
+<code>7*7/2</code> and <code>3*3/2</code>, the common pattern being <code>x*x/2</code>. In this case, the 
+abstraction capabilities of <code>With</code> are not sufficient.</p>
+
+<p>One way to enable more powerful abstractions are <em>functions</em>. Depending on 
+the context of use and the interaction with other language features (such as 
+imperative features or objects), functions are also sometimes called 
+<em>procedures</em> or <em>methods</em>.</p>
+
+<p>Here we consider so-called first-order functions, that &ndash; unlike higher-order 
+functions &ndash; are not expressions and can hence not be passed to or be returned 
+from other functions. First-order functions are simply called by name.</p>
+
+<p>To introduce first-order functions, we need two new things: </p>
+
+<ol>
+<li>The possibility to define functions and</li>
+<li>the possibility to call functions.</li>
+</ol>
+
+<p>A call to a function is an expression, whereas functions are defined 
+separately. Functions can have an arbitrary number of arguments.</p>
+
+<p>The following definitions are the language we have analyzed so far: </p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span> 
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span> 
+<span class="k">case</span> <span class="k">class</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">xdef</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-3'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-3">&#182;</a>
+        </div>
+        <p>We use implicits again to make example programs less verbose.</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">implicit</span> <span class="k">def</span> <span class="n">num2exp</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">sym2exp</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-4'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-4">&#182;</a>
+        </div>
+        <p>The new language constructs for first-order functions are:</p>
+
+<p><strong>Function definitions.</strong>
+A function has a number of formal arguments and a body. A first-order 
+function also has a name. To make the invariant that there can only be one 
+function for each name explicit, we store functions in the form of a map from
+function names to <code>FunDef</code>s.</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">case</span> <span class="k">class</span> <span class="nc">FunDef</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Symbol</span><span class="o">],</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span>
+<span class="k">type</span> <span class="kt">Funs</span> <span class="o">=</span> <span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>,<span class="kt">FunDef</span><span class="o">]</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-5'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-5">&#182;</a>
+        </div>
+        <p><strong>Function calls.</strong>
+Functions are called by name, here represented as a Symbol. Any valid 
+expressions may be passed as arguments.</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">case</span> <span class="k">class</span> <span class="nc">Call</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Exp</span><span class="o">])</span> <span class="k">extends</span> <span class="nc">Exp</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-A_substitution_based_implementation'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-A_substitution_based_implementation">&#182;</a>
+        </div>
+        <h2>A substitution based implementation</h2>
+
+<p>The substitution for the new language is a straightforward extension of the 
+former one (3-wae.scala#subst5)</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">def</span> <span class="n">subst</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span><span class="n">i</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span><span class="n">v</span><span class="k">:</span> <span class="kt">Num</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span>  <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span>
+    <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">i</span><span class="o">)</span> <span class="n">v</span> <span class="k">else</span> <span class="n">e</span>
+    <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Add</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> <span class="n">subst</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Mul</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> <span class="n">subst</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">xdef</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="o">,</span>
+                                   <span class="n">subst</span><span class="o">(</span><span class="n">xdef</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span>
+                                   <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">i</span><span class="o">)</span> <span class="n">body</span> <span class="k">else</span> <span class="n">subst</span><span class="o">(</span><span class="n">body</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">Call</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">args</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Call</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">args</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="n">subst</span><span class="o">(</span><span class="k">_</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">)))</span>
+<span class="o">}</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-7'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-7">&#182;</a>
+        </div>
+        <p>But is the extension really so straightforward?  It can be seen in the last 
+line that our substitution deliberately ignores the function name f'.  We 
+say in this case that function names and variable names live in different 
+&ldquo;name spaces&rdquo;. An alternative would be to have a common namespace.</p>
+
+<p>We will first study a &ldquo;reference interpreter&rdquo; based on substitution. We pass 
+the map of functions as an additional parameter <code>funs</code>.</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">funs</span><span class="k">:</span> <span class="kt">Funs</span><span class="o">,</span> <span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">n</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;unbound identifier: &quot;</span><span class="o">+</span><span class="n">x</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">l</span><span class="o">)</span> <span class="o">+</span> <span class="n">eval</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">r</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">l</span><span class="o">)</span> <span class="o">*</span> <span class="n">eval</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">r</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">xdef</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">subst</span><span class="o">(</span><span class="n">body</span><span class="o">,</span><span class="n">x</span><span class="o">,</span><span class="nc">Num</span><span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">xdef</span><span class="o">))))</span> 
+  <span class="k">case</span> <span class="nc">Call</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">args</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+
+    <span class="cm">/* lookup function definition */</span>
+    <span class="k">val</span> <span class="n">fd</span> <span class="k">=</span> <span class="n">funs</span><span class="o">(</span><span class="n">f</span><span class="o">)</span>
+
+    <span class="cm">/* evaluate function arguments */</span>
+    <span class="k">val</span> <span class="n">vargs</span> <span class="k">=</span> <span class="n">args</span><span class="o">.</span><span class="n">map</span><span class="o">(</span> <span class="n">eval</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="k">_</span><span class="o">))</span>
+
+    <span class="k">if</span> <span class="o">(</span><span class="n">fd</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="n">vargs</span><span class="o">.</span><span class="n">size</span><span class="o">)</span> 
+      <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;number of paramters in call to &quot;</span><span class="o">+</span><span class="n">f</span><span class="o">+</span><span class="s">&quot; does not match&quot;</span><span class="o">)</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-8'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-8">&#182;</a>
+        </div>
+        <p>We construct the function&rsquo;s body by subsequently substituting all formal 
+parameters with their respective argument values.
+If there is only one single argument <code>fd.arg</code> and one single argument 
+value <code>varg</code>, the next line of code is equivalent to:
+<code>val substbody = subst(fd.body, fd.arg, Num(varg))</code></p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre>    <span class="k">val</span> <span class="n">substbody</span> <span class="k">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">zip</span><span class="o">(</span><span class="n">vargs</span><span class="o">).</span><span class="n">foldLeft</span><span class="o">(</span><span class="n">fd</span><span class="o">.</span><span class="n">body</span><span class="o">)(</span>
+      <span class="o">(</span><span class="n">b</span><span class="o">,</span><span class="n">av</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">subst</span><span class="o">(</span><span class="n">b</span><span class="o">,</span><span class="n">av</span><span class="o">.</span><span class="n">_1</span><span class="o">,</span><span class="nc">Num</span><span class="o">(</span><span class="n">av</span><span class="o">.</span><span class="n">_2</span><span class="o">))</span>
+    <span class="o">)</span>
+
+    <span class="n">eval</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">substbody</span><span class="o">)</span>
+  <span class="o">}</span>   
+<span class="o">}</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-9'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-9">&#182;</a>
+        </div>
+        <p>Two functions <code>adder</code> and <code>doubleadder</code> which may be used for testing:</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">val</span> <span class="n">someFuns</span> <span class="k">=</span> <span class="nc">Map</span><span class="o">(</span> 
+  <span class="-Symbol">&#39;adder</span> <span class="o">-&gt;</span> <span class="nc">FunDef</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">,</span><span class="-Symbol">&#39;b</span><span class="o">),</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">,</span><span class="-Symbol">&#39;b</span><span class="o">)),</span>
+  <span class="-Symbol">&#39;doubleadder</span> <span class="o">-&gt;</span> <span class="nc">FunDef</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="nc">Add</span><span class="o">(</span><span class="nc">Call</span><span class="o">(</span><span class="-Symbol">&#39;adder</span><span class="o">,</span> <span class="nc">List</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">,</span><span class="mi">5</span><span class="o">)),</span><span class="nc">Call</span><span class="o">(</span><span class="-Symbol">&#39;adder</span><span class="o">,</span> <span class="nc">List</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="mi">7</span><span class="o">))))</span>
+<span class="o">)</span>
+<span class="n">assert</span><span class="o">(</span> <span class="n">eval</span><span class="o">(</span><span class="n">someFuns</span><span class="o">,</span><span class="nc">Call</span><span class="o">(</span><span class="-Symbol">&#39;doubleadder</span><span class="o">,</span><span class="nc">List</span><span class="o">(</span><span class="mi">2</span><span class="o">,</span><span class="mi">3</span><span class="o">)))</span> <span class="o">==</span> <span class="mi">17</span><span class="o">)</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-10'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-10">&#182;</a>
+        </div>
+        <p>As can be seen in the example above, each function can &ldquo;see&rdquo; the other 
+functions. We say that in this language functions have a <em>global scope</em>.</p>
+
+<p>Exercise: Can a function also invoke itself? Is this useful?</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre></pre></div>
+      </td>
+    </tr>
+    <tr id='section-An_Environment_based_Implementation'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-An_Environment_based_Implementation">&#182;</a>
+        </div>
+        <h2>An Environment based Implementation</h2>
+
+<p>We will now study an environment-based version of the interpreter. To 
+motivate environments, consider the following sample program: </p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">val</span> <span class="n">testProg</span> <span class="k">=</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">1</span><span class="o">,</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;z</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span><span class="-Symbol">&#39;z</span><span class="o">)))))</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-12'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-12">&#182;</a>
+        </div>
+        <p>When considering the <code>With</code> case of the interpreter, the interpreter will
+subsequently produce and evaluate the following intermediate expressions:</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">val</span> <span class="n">testProgAfterOneStep</span>     <span class="k">=</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;z</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span><span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span><span class="-Symbol">&#39;z</span><span class="o">))))</span>
+<span class="k">val</span> <span class="n">testProgAfterTwoSteps</span>    <span class="k">=</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;z</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span><span class="nc">Add</span><span class="o">(</span><span class="mi">2</span><span class="o">,</span><span class="-Symbol">&#39;z</span><span class="o">)))</span>
+<span class="k">val</span> <span class="n">testProgAfterThreeSteps</span>  <span class="k">=</span> <span class="nc">Add</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span><span class="nc">Add</span><span class="o">(</span><span class="mi">2</span><span class="o">,</span><span class="mi">3</span><span class="o">))</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-13'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-13">&#182;</a>
+        </div>
+        <p>At this point only pure arithmetic is left. But we see that the interpreter
+had to apply subsitution three times. In general, if the program size is n,
+then the interpreter may perform up to O(n) substitutions, each of which
+takes O(n) time. This quadratic complexity seems rather wasteful. </p>
+
+<p>Can we do better?</p>
+
+<p>We can avoid the redundancy by deferring the substitutions until they are 
+really needed. Concretely, we define a repository of deferred substitutions, 
+called <em>environment</em>. </p>
+
+<p>It tells us which identifiers are supposed to be eventually substituted by 
+which value.</p>
+
+<p>This idea is captured in the following type definition:</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">type</span> <span class="kt">Env</span> <span class="o">=</span> <span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>,<span class="kt">Int</span><span class="o">]</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-14'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-14">&#182;</a>
+        </div>
+        <p>Initially, we have no substitutions to perform, so the repository is empty. 
+Every time we encounter a construct (a <code>With</code> or <code>Call</code>) that requires 
+substitution, we augment the repository by adding one more entry. The entry
+records the identiﬁer’s name and either the value (if eager) or expression 
+(if lazy) it should eventually be substituted with. We continue to evaluate 
+without actually performing substitution.</p>
+
+<p>This strategy breaks a key invariant we had established earlier: 
+Any identiﬁer the interpreter encounters must be free, since every bound
+identifier would have already been substituted. Now that we’re no longer 
+using the substitution-based model, we may encounter bound identiﬁers during 
+interpretation. How do we handle them?
+ We must substitute them by consulting the repository.</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">def</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">funs</span><span class="k">:</span> <span class="kt">Funs</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">n</span>
+
+  <span class="cm">/* look up in repository of deferred substitutions */</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="n">l</span><span class="o">)</span> <span class="o">+</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="n">r</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="n">l</span><span class="o">)</span> <span class="o">*</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="n">r</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">xdef</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalWithEnv</span><span class="o">(</span> <span class="n">funs</span><span class="o">,</span>
+                                           <span class="n">env</span> <span class="o">+</span> <span class="o">((</span><span class="n">x</span><span class="o">,</span><span class="n">evalWithEnv</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="n">xdef</span><span class="o">))),</span>
+                                           <span class="n">body</span> <span class="o">)</span> 
+  <span class="k">case</span> <span class="nc">Call</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">args</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+
+    <span class="cm">/* lookup function definition */</span>
+    <span class="k">val</span> <span class="n">fd</span> <span class="k">=</span> <span class="n">funs</span><span class="o">(</span><span class="n">f</span><span class="o">)</span>
+
+    <span class="cm">/* evaluate function arguments */</span>
+    <span class="k">val</span> <span class="n">vargs</span> <span class="k">=</span> <span class="n">args</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="n">evalWithEnv</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="k">_</span><span class="o">))</span>
+     
+    <span class="k">if</span> <span class="o">(</span><span class="n">fd</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="n">vargs</span><span class="o">.</span><span class="n">size</span><span class="o">)</span> 
+      <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;number of paramters in call to &quot;</span><span class="o">+</span><span class="n">f</span><span class="o">+</span><span class="s">&quot; does not match&quot;</span><span class="o">)</span>
+     
+    <span class="cm">/* We construct the environment by associating each formal argument to its </span>
+<span class="cm">     * actual (evaluated) value */</span>
+    <span class="k">val</span> <span class="n">newenv</span> <span class="k">=</span> <span class="nc">Map</span><span class="o">()</span> <span class="o">++</span> <span class="n">fd</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">zip</span><span class="o">(</span><span class="n">vargs</span><span class="o">)</span>
+
+    <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">newenv</span><span class="o">,</span><span class="n">fd</span><span class="o">.</span><span class="n">body</span><span class="o">)</span>
+  <span class="o">}</span>   
+<span class="o">}</span>
+
+<span class="k">val</span> <span class="n">test1</span> <span class="k">=</span> <span class="nc">Call</span><span class="o">(</span><span class="-Symbol">&#39;doubleadder</span><span class="o">,</span><span class="nc">List</span><span class="o">(</span><span class="mi">2</span><span class="o">,</span><span class="mi">3</span><span class="o">))</span>
+
+<span class="n">assert</span><span class="o">(</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">someFuns</span><span class="o">,</span><span class="nc">Map</span><span class="o">.</span><span class="n">empty</span><span class="o">,</span><span class="n">test1</span><span class="o">)</span> <span class="o">==</span> <span class="mi">17</span><span class="o">)</span> <span class="c1">//=&gt; It works!</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-Dynamic_Scoping'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-Dynamic_Scoping">&#182;</a>
+        </div>
+        <h2>Dynamic Scoping</h2>
+
+<p>In the interpreter above, we have extended the empty environment when 
+constructing <code>newenv</code>. A conceivable alternative is to extend <code>env</code> instead:</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">def</span> <span class="n">evalDynScope</span><span class="o">(</span><span class="n">funs</span><span class="k">:</span> <span class="kt">Funs</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">n</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalDynScope</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="n">l</span><span class="o">)</span> <span class="o">+</span> <span class="n">evalDynScope</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="n">r</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalDynScope</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="n">l</span><span class="o">)</span><span class="c1">// evalDynScope(funs,env,r)</span>
+  <span class="k">case</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">xdef</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalDynScope</span><span class="o">(</span> <span class="n">funs</span><span class="o">,</span>
+                                            <span class="n">env</span> <span class="o">+</span> <span class="o">((</span><span class="n">x</span><span class="o">,</span><span class="n">evalDynScope</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="n">xdef</span><span class="o">))),</span>
+                                            <span class="n">body</span> <span class="o">)</span> 
+  <span class="k">case</span> <span class="nc">Call</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">args</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+    <span class="k">val</span> <span class="n">fd</span> <span class="k">=</span> <span class="n">funs</span><span class="o">(</span><span class="n">f</span><span class="o">)</span> 
+    <span class="k">val</span> <span class="n">vargs</span> <span class="k">=</span> <span class="n">args</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="n">evalDynScope</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">env</span><span class="o">,</span><span class="k">_</span><span class="o">))</span> 
+    <span class="k">if</span> <span class="o">(</span><span class="n">fd</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="n">vargs</span><span class="o">.</span><span class="n">size</span><span class="o">)</span> 
+      <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;number of paramters in call to &quot;</span><span class="o">+</span><span class="n">f</span><span class="o">+</span><span class="s">&quot; does not match&quot;</span><span class="o">)</span>   
+    
+    <span class="cm">/* Extending env instead of using Map() !! */</span>
+    <span class="k">val</span> <span class="n">newenv</span> <span class="k">=</span> <span class="n">env</span> <span class="o">++</span> <span class="n">fd</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">zip</span><span class="o">(</span><span class="n">vargs</span><span class="o">)</span> 
+
+    <span class="n">evalDynScope</span><span class="o">(</span><span class="n">funs</span><span class="o">,</span><span class="n">newenv</span><span class="o">,</span><span class="n">fd</span><span class="o">.</span><span class="n">body</span><span class="o">)</span>
+  <span class="o">}</span>   
+<span class="o">}</span>
+
+<span class="n">assert</span><span class="o">(</span> <span class="n">evalDynScope</span><span class="o">(</span><span class="n">someFuns</span><span class="o">,</span><span class="nc">Map</span><span class="o">.</span><span class="n">empty</span><span class="o">,</span><span class="n">test1</span><span class="o">)</span> <span class="o">==</span> <span class="mi">17</span><span class="o">)</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-16'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-16">&#182;</a>
+        </div>
+        <p>Does this make a difference? Let&rsquo;s take a look at the following example:</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">val</span> <span class="n">funnyFun</span> <span class="k">=</span> <span class="nc">Map</span><span class="o">(</span>
+  <span class="-Symbol">&#39;funny</span> <span class="o">-&gt;</span> <span class="nc">FunDef</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">),</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">,</span><span class="-Symbol">&#39;b</span><span class="o">))</span>
+<span class="o">)</span>
+<span class="k">val</span> <span class="n">test2</span> <span class="k">=</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;b</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="nc">Call</span><span class="o">(</span><span class="-Symbol">&#39;funny</span><span class="o">,</span> <span class="nc">List</span><span class="o">(</span><span class="mi">4</span><span class="o">)))</span>
+<span class="n">assert</span><span class="o">(</span><span class="n">evalDynScope</span><span class="o">(</span><span class="n">funnyFun</span><span class="o">,</span> <span class="nc">Map</span><span class="o">.</span><span class="n">empty</span><span class="o">,</span> <span class="n">test2</span><span class="o">)</span> <span class="o">==</span> <span class="mi">7</span><span class="o">)</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-17'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-17">&#182;</a>
+        </div>
+        <p>In this example, the free variable <code>b</code> inside of <code>funny</code> is bound to 3.
+Obviously this interpreter is &ldquo;buggy&rdquo; in the sense that it does not agree 
+with the substitution-based interpreter. But is this semantics reasonable? </p>
+
+<p>Let&rsquo;s introduce some additional terminology to make the discussion simpler:</p>
+<blockquote>
+<p><strong>Definition (Static Scope).</strong>
+In a language with static scope, the scope of an identiﬁer’s binding is a 
+syntactically delimited region.</p>
+</blockquote>
+<p>A typical region would be the body of a function or other binding construct.</p>
+<blockquote>
+<p><strong>Definition (Dynamic Scope):</strong>
+In a language with dynamic scope, the scope of an identiﬁer’s binding is
+the entire remainder of the execution during which that binding is in effect.</p>
+</blockquote>
+<p>We see that <code>eval</code> and <code>evalWithEnv</code> give our language static scoping, 
+whereas <code>evalDynScope</code> gives our language dynamic scoping. </p>
+
+<p>Armed with this terminology, we claim that dynamic scope is entirely 
+unreasonable. The problem is that we simply cannot determine what the value 
+of a program will be without knowing everything about its execution history. </p>
+
+<p>If the function <code>funny</code> were invoked by some other sequence of functions that 
+did not bind a value for <code>b</code>, then that particular application of <code>funny</code> 
+would result in an error, even though a previous application of <code>f</code> in the 
+very same program’s execution completed successfully! </p>
+
+<p>In other words, simply by looking at the source text of <code>funny</code>, it would be 
+impossible to determine one of the most rudimentary properties of a program:
+&ldquo;Whether or not a given identiﬁer was bound.&rdquo;</p>
+
+<p>You can only imagine the mayhem this would cause in a large software system, 
+especially with multiple developers and complex flows of control. In this
+lecture we will therefore regard dynamic scope as an error.</p>
+
+      </td>
+      <td class=code>
+        <div class='highlight'><pre></pre></div>
+      </td>
+    </tr>
+  </table>
+</div>
+</body>

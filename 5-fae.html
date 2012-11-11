@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8">
+  <title>5-fae.scala</title>
+  <link rel="stylesheet" href="http://jashkenas.github.com/docco/resources/docco.css">
+</head>
+<body>
+<div id='container'>
+  <div id="background"></div>
+  <div id="jump_to">
+    Jump To &hellip;
+    <div id="jump_wrapper">
+      <div id="jump_page">
+          <a class="source" href="10-gc.html">10-gc.scala</a>
+          <a class="source" href="2-ae.html">2-ae.scala</a>
+          <a class="source" href="3-wae.html">3-wae.scala</a>
+          <a class="source" href="4-f1wae.html">4-f1wae.scala</a>
+          <a class="source" href="5-fae.html">5-fae.scala</a>
+          <a class="source" href="6-lcfae.html">6-lcfae.scala</a>
+          <a class="source" href="8-rcfae.html">8-rcfae.scala</a>
+          <a class="source" href="9-bcfae.html">9-bcfae.scala</a>
+      </div>
+    </div>
+  </div>
+  <table cellspacing=0 cellpadding=0>
+  <thead>
+    <tr>
+      <th class=docs><h1>5-fae.scala</h1></th>
+      <th class=code></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr id='section-1'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-1">&#182;</a>
+        </div>
+        
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="cm">/*</span>
+<span class="cm">These are lecture notes for the &quot;Programming Languages and Types&quot; course by Klaus Ostermann </span>
+<span class="cm">at the University of Marburg</span>
+
+<span class="cm">loosely based on Sec. 6 of &quot;Programming Languages: Application and Interpretation&quot; by</span>
+<span class="cm">Shriram Krishnamurthi</span>
+
+<span class="cm">Please comment/correct/improve these notes via github. Proposals or questions can</span>
+<span class="cm">be submitted as an &quot;issue&quot;; proposals for corrections/extensions/improvements can</span>
+<span class="cm">be submitted as a &quot;pull request&quot;. You can of course also send an email to Klaus Ostermann */</span>
+
+
+<span class="cm">/* F1-WAE, the language with first-order functions, lets us abstract over patterns</span>
+<span class="cm"> * that involve numbers. But what if we want to abstract over patterns that</span>
+<span class="cm"> * involve functions, such as the &quot;list fold&quot; pattern, whose instantiations</span>
+<span class="cm"> * include summing or multiplying a list of integers?</span>
+<span class="cm"> * </span>
+<span class="cm"> * To enable this kind of abstraction, we need to make functions &quot;first-class&quot;,</span>
+<span class="cm"> * which means that they become values that can be passed to or returned from</span>
+<span class="cm"> * functions or stored in data structures. Languages with first-class functions</span>
+<span class="cm"> * enable so-called &quot;higher-order functions&quot;, which are functions that accept or</span>
+<span class="cm"> * return a (possibly again higher-order) function.</span>
+<span class="cm"> *</span>
+<span class="cm"> * We will see that this extension will make our language both simpler and much</span>
+<span class="cm"> * more powerful. This seeming contradiction is famously addressed by the first</span>
+<span class="cm"> * sentence of the Scheme language specification:</span>
+<span class="cm"> *</span>
+<span class="cm"> *  &quot;Programming languages should be designed not by piling feature on top of </span>
+<span class="cm"> *   feature, but by removing the weaknesses and restrictions that make additional </span>
+<span class="cm"> *   features appear necessary.&quot;</span>
+<span class="cm"> * </span>
+<span class="cm"> * The simplicity is due to the fact that this language is so expressive that many</span>
+<span class="cm"> * other language features can be &quot;encoded&quot;, i.e., they do not need to be added</span>
+<span class="cm"> * to the language but can be expressed with the existing features.</span>
+<span class="cm"> *</span>
+<span class="cm"> * This language, which we call &quot;FAE&quot;, is basically the so-called &quot;lambda calculus&quot;,</span>
+<span class="cm"> * a minimal but powerful programming language that has been highly influential</span>
+<span class="cm"> * in the design and theory of programming languages. </span>
+<span class="cm"> *</span>
+<span class="cm"> * FAE is the language of arithmetic expressions, AE, plus only two additional</span>
+<span class="cm"> * language constructs: Function abstraction and function application. </span>
+<span class="cm"> */</span>
+
+ 
+<span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">num2exp</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">id2exp</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Id</span><span class="o">(</span><span class="n">s</span><span class="o">)</span>
+
+<span class="cm">/* Both function definitions and applications are expressions. */</span> 
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">App</span> <span class="o">(</span><span class="n">funExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">argExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+
+<span class="cm">/* Due to the lambda calculus, the concrete syntax for function abstraction is</span>
+<span class="cm"> * often written with a lambda, such as &quot;lambda x. x+3&quot;, thus also called lambda</span>
+<span class="cm"> * abstraction. The Scala syntax for lambda terms is &quot; (x) =&gt; x+3&quot;, the Haskell</span>
+<span class="cm"> * syntax is &quot;\x -&gt; x+3&quot;.</span>
+<span class="cm"> * </span>
+<span class="cm"> * The concrete syntax for function application is often either </span>
+<span class="cm"> * juxtaposition &quot;f a&quot; or using brackets &quot;f(a)&quot;. Haskell and the lambda calculus</span>
+<span class="cm"> * use the former, Scala uses the latter.</span>
+<span class="cm"> *</span>
+<span class="cm"> * The &quot;with&quot; construct is not needed anymore since it can be encoded</span>
+<span class="cm"> * using App and Fun. For instance, &quot;with x = 7 in x+3&quot; can be encoded</span>
+<span class="cm"> * (using Scala syntax) as &quot; ((x) =&gt; x+3)(7)</span>
+<span class="cm"> *</span>
+<span class="cm"> * We make this idea explicit by giving a constructive translation. Such translations</span>
+<span class="cm"> * are also often called &quot;desugaring&quot;.</span>
+<span class="cm"> */</span>
+ </pre></div>
+      </td>
+    </tr>
+    <tr id='section-2'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-2">&#182;</a>
+        </div>
+        <p>&ldquo;with&rdquo; would be a better name for this function, but it is reserved in Scala</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="k">def</span> <span class="n">wth</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">xdef</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">),</span><span class="n">xdef</span><span class="o">)</span>
+
+<span class="cm">/* Like for F1WAE, we will at first define the meaning of FAE in terms of</span>
+<span class="cm"> * substitution. Here is the substitution function for FAE. */</span>
+ 
+<span class="k">def</span> <span class="n">subst</span><span class="o">(</span><span class="n">e1</span> <span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">e2</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="n">e1</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e1</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Add</span><span class="o">(</span><span class="n">subst</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">x</span><span class="o">,</span><span class="n">e2</span><span class="o">),</span> <span class="n">subst</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">x</span><span class="o">,</span><span class="n">e2</span><span class="o">))</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">y</span><span class="o">)</span> <span class="n">e2</span> <span class="k">else</span> <span class="nc">Id</span><span class="o">(</span><span class="n">y</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">App</span><span class="o">(</span><span class="n">subst</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">x</span><span class="o">,</span><span class="n">e2</span><span class="o">),</span><span class="n">subst</span><span class="o">(</span><span class="n">a</span><span class="o">,</span><span class="n">x</span><span class="o">,</span><span class="n">e2</span><span class="o">))</span>
+  <span class="k">case</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> 
+    <span class="k">if</span> <span class="o">(</span><span class="n">param</span> <span class="o">==</span> <span class="n">x</span><span class="o">)</span> <span class="n">e1</span>  <span class="k">else</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="o">,</span> <span class="n">subst</span><span class="o">(</span><span class="n">body</span><span class="o">,</span> <span class="n">x</span><span class="o">,</span> <span class="n">e2</span><span class="o">))</span>
+<span class="o">}</span>
+
+<span class="cm">/* Let&#39;s try whether subst produces reasonable results. */</span>
+<span class="n">assert</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="nc">Add</span><span class="o">(</span><span class="mi">5</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">7</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Add</span><span class="o">(</span><span class="mi">5</span><span class="o">,</span> <span class="mi">7</span><span class="o">))</span>
+<span class="n">assert</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="nc">Add</span><span class="o">(</span><span class="mi">5</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="-Symbol">&#39;y</span><span class="o">,</span> <span class="mi">7</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Add</span><span class="o">(</span><span class="mi">5</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))</span>
+<span class="n">assert</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;y</span><span class="o">)),</span> <span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">7</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;y</span><span class="o">)))</span>
+
+<span class="cm">/* However, what happens if e2 contains free variables? The danger</span>
+<span class="cm"> * here is that they may be accidentially &quot;captured&quot; by the substitution.</span>
+<span class="cm"> * For instance, consider </span>
+<span class="cm"> *</span>
+<span class="cm"> *  subst(Fun(&#39;x, Add(&#39;x,&#39;y)), &#39;y, Add(&#39;x,5))</span>
+<span class="cm"> *</span>
+<span class="cm"> * The result is Fun(&#39;x,Add(&#39;x,Add(&#39;x,5)))</span>
+<span class="cm"> * </span>
+<span class="cm"> * This is not desirable, since it violates again static scoping.</span>
+<span class="cm"> *</span>
+<span class="cm"> * Note that this problem did not show up in earlier languages, because</span>
+<span class="cm"> * there we only substituted variables by numbers, but not by expressions</span>
+<span class="cm"> * that may contain free variables: The type of e2 was &quot;Num&quot; and not &quot;Exp&quot;.</span>
+<span class="cm"> *</span>
+<span class="cm"> * Hence we are still not done with defining substitution.</span>
+<span class="cm"> * But what is the desired result of the substitution above?</span>
+<span class="cm"> * The answer is that we must avoid the name clash by renaming the variable</span>
+<span class="cm"> * bound by the &quot;lambda&quot; if the variable name occurs free in e2. This new</span>
+<span class="cm"> * variable name should be &quot;fresh&quot;, i.e., not occur free in e2.</span>
+<span class="cm"> * </span>
+<span class="cm"> * For instance, in the example above, we could first rename &#39;x to the fresh name</span>
+<span class="cm"> * &#39;x0 and only then substitute, i.e. </span>
+<span class="cm"> *</span>
+<span class="cm"> *   subst(Fun(&#39;x, Add(&#39;x,&#39;y)), &#39;y, Add(&#39;x,5)) == Fun(&#39;x0,Add(Id(&#39;x0),Add(Id(&#39;x),Num(5))))</span>
+<span class="cm"> *</span>
+<span class="cm"> * Let&#39;s do this step by step.</span>
+<span class="cm"> */</span>
+ 
+<span class="k">def</span> <span class="n">freshName</span><span class="o">(</span><span class="n">names</span><span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Symbol</span><span class="o">],</span> <span class="n">default</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Symbol</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="k">var</span> <span class="n">last</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="k">var</span> <span class="n">freshName</span> <span class="k">=</span> <span class="n">default</span>  
+  <span class="k">while</span> <span class="o">(</span><span class="n">names</span> <span class="n">contains</span> <span class="n">freshName</span><span class="o">)</span> <span class="o">{</span> <span class="n">freshName</span> <span class="k">=</span> <span class="nc">Symbol</span><span class="o">(</span><span class="n">default</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="n">last</span><span class="o">.</span><span class="n">toString</span><span class="o">);</span> <span class="n">last</span> <span class="o">+=</span> <span class="mi">1</span><span class="o">;</span> <span class="o">}</span>
+  <span class="n">freshName</span>
+<span class="o">}</span>
+
+<span class="n">assert</span><span class="o">(</span> <span class="n">freshName</span><span class="o">(</span><span class="nc">Set</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span><span class="-Symbol">&#39;z</span><span class="o">),</span><span class="-Symbol">&#39;x</span><span class="o">)</span> <span class="o">==</span> <span class="-Symbol">&#39;x</span><span class="o">)</span>
+<span class="n">assert</span><span class="o">(</span> <span class="n">freshName</span><span class="o">(</span><span class="nc">Set</span><span class="o">(</span><span class="-Symbol">&#39;x2</span><span class="o">,</span><span class="-Symbol">&#39;x0</span><span class="o">,</span><span class="-Symbol">&#39;x4</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;x1</span><span class="o">),</span><span class="-Symbol">&#39;x</span><span class="o">)</span> <span class="o">==</span> <span class="-Symbol">&#39;x3</span><span class="o">)</span>
+
+<span class="k">def</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Symbol</span><span class="o">]</span> <span class="k">=</span>  <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+   <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Set</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+   <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">l</span><span class="o">)</span> <span class="o">++</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
+   <span class="k">case</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">body</span><span class="o">)</span> <span class="o">-</span> <span class="n">x</span>
+   <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">f</span><span class="o">)</span> <span class="o">++</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+   <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Set</span><span class="o">.</span><span class="n">empty</span>
+<span class="o">}</span>
+<span class="n">assert</span><span class="o">(</span><span class="n">freeVars</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;y</span><span class="o">)))</span> <span class="o">==</span> <span class="nc">Set</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">))</span>
+
+<span class="k">def</span> <span class="n">subst</span><span class="o">(</span><span class="n">e1</span> <span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">e2</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="n">e1</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e1</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Add</span><span class="o">(</span><span class="n">subst</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">x</span><span class="o">,</span><span class="n">e2</span><span class="o">),</span> <span class="n">subst</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">x</span><span class="o">,</span><span class="n">e2</span><span class="o">))</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">y</span><span class="o">)</span> <span class="n">e2</span> <span class="k">else</span> <span class="nc">Id</span><span class="o">(</span><span class="n">y</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">App</span><span class="o">(</span><span class="n">subst</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">x</span><span class="o">,</span><span class="n">e2</span><span class="o">),</span><span class="n">subst</span><span class="o">(</span><span class="n">a</span><span class="o">,</span><span class="n">x</span><span class="o">,</span><span class="n">e2</span><span class="o">))</span>
+  <span class="k">case</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> 
+    <span class="k">if</span> <span class="o">(</span><span class="n">param</span> <span class="o">==</span> <span class="n">x</span><span class="o">)</span> <span class="n">e1</span> <span class="k">else</span> <span class="o">{</span>
+      <span class="k">val</span> <span class="n">newvar</span> <span class="k">=</span> <span class="n">freshName</span><span class="o">(</span><span class="n">freeVars</span><span class="o">(</span><span class="n">e2</span><span class="o">),</span> <span class="n">param</span><span class="o">)</span>
+      <span class="nc">Fun</span><span class="o">(</span><span class="n">newvar</span><span class="o">,</span> <span class="n">subst</span><span class="o">(</span><span class="n">subst</span><span class="o">(</span><span class="n">body</span><span class="o">,</span> <span class="n">param</span><span class="o">,</span> <span class="nc">Id</span><span class="o">(</span><span class="n">newvar</span><span class="o">)),</span> <span class="n">x</span><span class="o">,</span> <span class="n">e2</span><span class="o">))</span>
+    <span class="o">}</span>                            
+<span class="o">}</span>
+
+<span class="n">assert</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="nc">Add</span><span class="o">(</span><span class="mi">5</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">7</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Add</span><span class="o">(</span><span class="mi">5</span><span class="o">,</span> <span class="mi">7</span><span class="o">))</span>
+<span class="n">assert</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="nc">Add</span><span class="o">(</span><span class="mi">5</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="-Symbol">&#39;y</span><span class="o">,</span> <span class="mi">7</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Add</span><span class="o">(</span><span class="mi">5</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))</span>
+<span class="n">assert</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;y</span><span class="o">)),</span> <span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">7</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;y</span><span class="o">)))</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-3'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-3">&#182;</a>
+        </div>
+        <p>test capture-avoiding substitution</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="n">assert</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;y</span><span class="o">)),</span> <span class="-Symbol">&#39;y</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="mi">5</span><span class="o">))</span> <span class="o">==</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x0</span><span class="o">,</span><span class="nc">Add</span><span class="o">(</span><span class="nc">Id</span><span class="o">(</span><span class="-Symbol">&#39;x0</span><span class="o">),</span><span class="nc">Add</span><span class="o">(</span><span class="nc">Id</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">),</span><span class="nc">Num</span><span class="o">(</span><span class="mi">5</span><span class="o">)))))</span>
+
+<span class="cm">/* OK, equipped with this new version of substitution we can now define the interpreter</span>
+<span class="cm"> * for this language.</span>
+<span class="cm"> *</span>
+<span class="cm"> * But how do we evaluate a function abstraction? Obviously we cannot return a number.</span>
+<span class="cm"> *</span>
+<span class="cm"> * We realize that functions are also values! Hence we have to broaden the return type of</span>
+<span class="cm"> * our evaluator to also allow functions as values. </span>
+<span class="cm"> * </span>
+<span class="cm"> * For simplicity, we use &quot;Exp&quot; as our return type since it allows us to return both</span>
+<span class="cm"> * numbers and functions. Later we will become more sophisticated.</span>
+<span class="cm"> *</span>
+<span class="cm"> * This means that a new class of errors can occur: A subexpression evaluates to a number</span>
+<span class="cm"> * where a function is expected, or vice versa. Such errors are called _type errors_, and</span>
+<span class="cm"> * we will talk about them in much more detail later. For now, it means that we need to</span>
+<span class="cm"> * analyze (typically by pattern matching) the result of recursive invocations of eval to</span>
+<span class="cm"> * check whether the result has the right type.</span>
+<span class="cm"> *</span>
+<span class="cm"> * The remainder of the interpreter is unsurprising. </span>
+<span class="cm"> */</span>
+<span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;unbound identifier: &quot;</span><span class="o">+</span><span class="n">v</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">),</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+                     <span class="k">case</span> <span class="o">(</span><span class="nc">Num</span><span class="o">(</span><span class="n">x</span><span class="o">),</span><span class="nc">Num</span><span class="o">(</span><span class="n">y</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">Num</span><span class="o">(</span><span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="o">)</span>
+                     <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+                    <span class="o">}</span>
+  <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+     <span class="k">case</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="n">body</span><span class="o">,</span><span class="n">x</span><span class="o">,</span> <span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">)))</span>
+     <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+  <span class="o">}</span>
+  <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="c1">// numbers and functions evaluate to themselves</span>
+<span class="o">}</span>
+
+<span class="cm">/* We can also make the return type more precise to verify the invariant </span>
+<span class="cm"> * that numbers and functions are the only values. */</span>
+<span class="k">def</span> <span class="n">eval2</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Either</span><span class="o">[</span><span class="kt">Num</span>,<span class="kt">Fun</span><span class="o">]</span> <span class="k">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;unbound identifier: &quot;</span><span class="o">+</span><span class="n">v</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">eval2</span><span class="o">(</span><span class="n">l</span><span class="o">),</span> <span class="n">eval2</span><span class="o">(</span><span class="n">r</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+                     <span class="k">case</span> <span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="nc">Num</span><span class="o">(</span><span class="n">x</span><span class="o">)),</span><span class="nc">Left</span><span class="o">(</span><span class="nc">Num</span><span class="o">(</span><span class="n">y</span><span class="o">)))</span> <span class="k">=&gt;</span> <span class="nc">Left</span><span class="o">(</span><span class="nc">Num</span><span class="o">(</span><span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="o">))</span>
+                     <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+                    <span class="o">}</span>
+  <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval2</span><span class="o">(</span><span class="n">f</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+     <span class="k">case</span> <span class="nc">Right</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="n">eval2</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="n">body</span><span class="o">,</span><span class="n">x</span><span class="o">,</span> <span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">)))</span>
+     <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+  <span class="o">}</span>
+  <span class="k">case</span> <span class="n">f</span><span class="nd">@Fun</span><span class="o">(</span><span class="k">_</span><span class="o">,</span><span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Right</span><span class="o">(</span><span class="n">f</span><span class="o">)</span> 
+  <span class="k">case</span> <span class="n">n</span><span class="nd">@Num</span><span class="o">(</span><span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Left</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+<span class="o">}</span>
+
+<span class="cm">/* Let&#39;s test. </span>
+<span class="cm"> * Exercise: Add more interesting test cases.</span>
+<span class="cm"> */</span>
+<span class="k">val</span> <span class="n">test</span> <span class="k">=</span> <span class="nc">App</span><span class="o">(</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="mi">5</span><span class="o">)),</span> <span class="mi">7</span><span class="o">)</span>
+
+<span class="n">assert</span><span class="o">(</span> <span class="n">eval</span><span class="o">(</span><span class="n">test</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Num</span><span class="o">(</span><span class="mi">12</span><span class="o">))</span>
+
+<span class="cm">/* FAE is a computationally (Turing)-complete language. For instance, we can define </span>
+<span class="cm"> * a non-terminating program. This program is commonly called Omega */</span>
+ 
+<span class="k">val</span> <span class="n">omega</span> <span class="k">=</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">)),</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">)))</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-4'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-4">&#182;</a>
+        </div>
+        <p>try eval(omega) to crash the interpreter ;&ndash;)</p>
+      </td>
+      <td class=code>
+        <div class='highlight'><pre><span class="cm">/* Omega can be extended to yield a fixed point combinator, which can be</span>
+<span class="cm"> * used to encode arbitrary recursive functions. We come back to this topic</span>
+<span class="cm"> * later. */</span>
+
+<span class="cm">/* Let&#39;s now discuss what an environment-based version of this interpreter looks like.</span>
+<span class="cm"> *</span>
+<span class="cm"> * Here is a first attempt.</span>
+<span class="cm"> */</span>
+<span class="k">type</span> <span class="kt">Env0</span> <span class="o">=</span> <span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>, <span class="kt">Exp</span><span class="o">]</span>
+
+<span class="k">def</span> <span class="n">evalWithEnv0</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env0</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+    <span class="o">(</span><span class="n">evalWithEnv0</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">env</span><span class="o">),</span> <span class="n">evalWithEnv0</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">env</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="o">(</span><span class="nc">Num</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span><span class="nc">Num</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">Num</span><span class="o">(</span><span class="n">v1</span><span class="o">+</span><span class="n">v2</span><span class="o">)</span>
+      <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+  <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalWithEnv0</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">env</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalWithEnv0</span><span class="o">(</span><span class="n">body</span><span class="o">,</span> <span class="nc">Map</span><span class="o">(</span><span class="n">x</span> <span class="o">-&gt;</span> <span class="n">evalWithEnv0</span><span class="o">(</span><span class="n">a</span><span class="o">,</span><span class="n">env</span><span class="o">)))</span>
+    <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+  <span class="o">}</span>
+  <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="c1">// numbers and functions evaluate to themselves </span>
+<span class="o">}</span>
+
+<span class="n">assert</span><span class="o">(</span> <span class="n">evalWithEnv0</span><span class="o">(</span><span class="n">test</span><span class="o">,</span> <span class="nc">Map</span><span class="o">.</span><span class="n">empty</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Num</span><span class="o">(</span><span class="mi">12</span><span class="o">))</span>
+
+<span class="cm">/* However, consider the following example. */</span> 
+<span class="k">val</span> <span class="n">test2</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span><span class="mi">3</span><span class="o">)),</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span><span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;y</span><span class="o">))))</span>
+
+<span class="cm">/* It works fine in the substitution-based interpreter. */</span>
+<span class="n">assert</span><span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">test2</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Num</span><span class="o">(</span><span class="mi">8</span><span class="o">))</span>
+
+<span class="cm">/* but evalWithEnv0(test2,Map.empty) yields an &quot;identifier not found: &#39;x&quot; error. </span>
+<span class="cm"> * </span>
+<span class="cm"> * The problem is that we have forgotten the deferred substitutions to be performed</span>
+<span class="cm"> * in the body of the function.</span>
+<span class="cm"> *</span>
+<span class="cm"> * What can we do to fix this problem?</span>
+<span class="cm"> *</span>
+<span class="cm"> * We could try to replace the second line in the &quot;App&quot; case by</span>
+<span class="cm"> *     case Fun(x,body) =&gt; evalWithEnv0(body, env + (x -&gt; evalWithEnv0(a,env)))</span>
+<span class="cm"> * but this would again introduce dynamic scoping.</span>
+<span class="cm"> *</span>
+<span class="cm"> * Hence, when we evaluate a function, we do not only have to store the function, but also</span>
+<span class="cm"> * the environment active when the function was created. This pair of function and environment</span>
+<span class="cm"> * is called a _closure_. The environment stored in the closure is used when the function is</span>
+<span class="cm"> * eventually applied.</span>
+<span class="cm"> *</span>
+<span class="cm"> * Hint: If you cannot answer what a closure is and how it is used in the </span>
+<span class="cm"> * interpreter, you will be toast in the exam!</span>
+<span class="cm"> *</span>
+<span class="cm"> * Since closures are not expressible in the language syntax, we now come to the point where</span>
+<span class="cm"> * we need a separate category of _values_. The values in FAE can be either numbers or closures. </span>
+<span class="cm"> */</span>
+ 
+<span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Value</span>
+<span class="k">type</span> <span class="kt">Env</span> <span class="o">=</span> <span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>, <span class="kt">Value</span><span class="o">]</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Fun</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+
+<span class="cm">/* The evaluator becomes :*/</span>
+
+<span class="k">def</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Value</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+    <span class="o">(</span><span class="n">evalWithEnv</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">env</span><span class="o">),</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">env</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">+</span><span class="n">v2</span><span class="o">)</span>
+      <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+  <span class="k">case</span> <span class="n">f</span><span class="nd">@Fun</span><span class="o">(</span><span class="n">param</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">env</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span></pre></div>
+      </td>
+    </tr>
+    <tr id='section-5'>
+      <td class=docs>
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-5">&#182;</a>
+        </div>
+        <p>Use environment stored in closure to realize proper lexical scoping!</p>
+
+      </td>
+      <td class=code>
+        <div class='highlight'><pre>    <span class="k">case</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">closureEnv</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">body</span><span class="o">,</span> <span class="n">closureEnv</span> <span class="o">+</span> <span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">param</span> <span class="o">-&gt;</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">a</span><span class="o">,</span><span class="n">env</span><span class="o">)))</span>
+    <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+<span class="n">assert</span><span class="o">(</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">test</span><span class="o">,</span> <span class="nc">Map</span><span class="o">.</span><span class="n">empty</span><span class="o">)</span> <span class="o">==</span> <span class="nc">NumV</span><span class="o">(</span><span class="mi">12</span><span class="o">))</span>
+<span class="n">assert</span><span class="o">(</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">test2</span><span class="o">,</span><span class="nc">Map</span><span class="o">.</span><span class="n">empty</span><span class="o">)</span> <span class="o">==</span> <span class="nc">NumV</span><span class="o">(</span><span class="mi">8</span><span class="o">))</span></pre></div>
+      </td>
+    </tr>
+  </table>
+</div>
+</body>
