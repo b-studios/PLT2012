@@ -38,10 +38,7 @@ be submitted as a "pull request". You can of course also send an email to Klaus 
  * in the design and theory of programming languages. 
  *
  * FAE is the language of arithmetic expressions, AE, plus only two additional
- * language constructs: Function abstraction and function application. 
- */
-
- 
+ * language constructs: Function abstraction and function application. */
 sealed abstract class Exp
 case class Num(n: Int) extends Exp
 case class Id(name: Symbol) extends Exp
