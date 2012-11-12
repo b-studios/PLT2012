@@ -1,60 +1,39 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="content-type" content="text/html;charset=utf-8">
+  <meta charset="utf-8">
   <title>3-wae.scala</title>
-  <link rel="stylesheet" href="http://jashkenas.github.com/docco/resources/docco.css">
+  <link rel="stylesheet" href="../recources/style.css">
 </head>
 <body>
-<div id='container'>
-  <div id="background"></div>
-  <div id="jump_to">
-    Jump To &hellip;
-    <div id="jump_wrapper">
-      <div id="jump_page">
-          <a class="source" href="10-gc.html">10-gc.scala</a>
-          <a class="source" href="2-ae.html">2-ae.scala</a>
-          <a class="source" href="3-wae.html">3-wae.scala</a>
-          <a class="source" href="4-f1wae.html">4-f1wae.scala</a>
-          <a class="source" href="5-fae.html">5-fae.scala</a>
-          <a class="source" href="6-lcfae.html">6-lcfae.scala</a>
-          <a class="source" href="8-rcfae.html">8-rcfae.scala</a>
-          <a class="source" href="9-bcfae.html">9-bcfae.scala</a>
-      </div>
-    </div>
-  </div>
-  <table cellspacing=0 cellpadding=0>
-  <thead>
-    <tr>
-      <th class=docs><h1>3-wae.scala</h1></th>
-      <th class=code></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr id='section-Adding_With-Expresions'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-Adding_With-Expresions">&#182;</a>
-        </div>
-        <h1>Adding With-Expresions</h1>
+  <header>
+  <nav>
+    <ul>    
+        <li><a href="10-gc.html">10-gc.scala</a></li>
+        <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="3-wae.html">3-wae.scala</a></li>
+        <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
+        <li><a href="5-fae.html">5-fae.scala</a></li>
+        <li><a href="6-lcfae.html">6-lcfae.scala</a></li>
+        <li><a href="8-rcfae.html">8-rcfae.scala</a></li>
+        <li><a href="9-bcfae.html">9-bcfae.scala</a></li>
+    </ul>
+  </nav>
+  </header>
+  <article id="documentation">
+    <section id='section-Adding_With-Expresions'>
+      <div class="docs"><h1>Adding With-Expresions</h1>
 
 <p>These are lecture notes for the &ldquo;Programming Languages and Types&rdquo; at the 
 University of Marburg loosely based on Sec. 3 of the book &ldquo;Programming 
 Languages: Application and Interpretation&rdquo; by Shriram Krishnamurthi.
 Please send comments or errors in these notes via email to Klaus Ostermann.
 My email address can be found on my webpage. Alternatively, you can also 
-propose corrections as a github pull request.</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre></pre></div>
-      </td>
-    </tr>
-    <tr id='section-2'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-2">&#182;</a>
-        </div>
-        <p>We want, step by step, to develop our primitive calculator language into a 
+propose corrections as a github pull request.</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-2'>
+      <div class="docs"><p>We want, step by step, to develop our primitive calculator language into a 
 full-fledged PL. </p>
 
 <p>One important milestone on this way is the ability to deal with names.
@@ -83,47 +62,26 @@ Scala.</p>
 
 <p>We have not defined a concrete syntax for WAE, but it is a real language 
 nevertheless. We sometimes use some made-up syntax for examples on the 
-blackboard or in comments.</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span> 
+blackboard or in comments.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span> 
 <span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
 <span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
 <span class="k">case</span> <span class="k">class</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
 <span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span> 
 <span class="k">case</span> <span class="k">class</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">xdef</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
- </pre></div>
-      </td>
-    </tr>
-    <tr id='section-3'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-3">&#182;</a>
-        </div>
-        <p>We use implicits again to make example programs less verbose.</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre><span class="k">implicit</span> <span class="k">def</span> <span class="n">num2exp</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
-<span class="k">implicit</span> <span class="k">def</span> <span class="n">sym2exp</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span></pre></div>
-      </td>
-    </tr>
-    <tr id='section-4'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-4">&#182;</a>
-        </div>
-        <p>A first example program in WAE.</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre><span class="k">val</span> <span class="n">test</span> <span class="k">=</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))</span></pre></div>
-      </td>
-    </tr>
-    <tr id='section-Substitution'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-Substitution">&#182;</a>
-        </div>
-        <h2>Substitution</h2>
+ </pre></code></div>
+    </section>
+    <section id='section-3'>
+      <div class="docs"><p>We use implicits again to make example programs less verbose.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">implicit</span> <span class="k">def</span> <span class="n">num2exp</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">sym2exp</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-4'>
+      <div class="docs"><p>A first example program in WAE.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test</span> <span class="k">=</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-Substitution'>
+      <div class="docs"><h2>Substitution</h2>
 
 <p>Instead of dealing with identifiers as external entities as in AE, 
 identifiers can now be defined within the language. This justifies a new 
@@ -172,56 +130,39 @@ inserted (accidential name capture problem, more about that later).</p>
 
 <p>Since we want to experiment with different versions of substitution, we write 
 the interpreter in such a way that we can parameterize it with a 
-substitution function:</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre><span class="k">def</span> <span class="n">makeEval</span><span class="o">(</span><span class="n">subst</span><span class="k">:</span> <span class="o">(</span><span class="kt">Exp</span><span class="o">,</span><span class="kt">Symbol</span><span class="o">,</span><span class="nc">Num</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Exp</span> <span class="o">=&gt;</span> <span class="nc">Int</span> <span class="k">=</span> <span class="o">{</span>
+substitution function:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">makeEval</span><span class="o">(</span><span class="n">subst</span><span class="k">:</span> <span class="o">(</span><span class="kt">Exp</span><span class="o">,</span><span class="kt">Symbol</span><span class="o">,</span><span class="nc">Num</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Exp</span> <span class="o">=&gt;</span> <span class="nc">Int</span> <span class="k">=</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
     <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">n</span>
     <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;unbound variable: &quot;</span><span class="o">+</span><span class="n">x</span><span class="o">)</span>
     <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">)</span> <span class="o">+</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
-    <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">)</span><span class="c1">// eval(r)</span>
+    <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">)</span> <span class="o">*</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
 
-    <span class="cm">/* After evaluation, take the `Int` and wrap it into a `Num`: */</span>
+    <span class="c1">// After evaluation, take the `Int` and wrap it into a `Num`:</span>
     <span class="k">case</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">xdef</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">subst</span><span class="o">(</span><span class="n">body</span><span class="o">,</span><span class="n">x</span><span class="o">,</span><span class="nc">Num</span><span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">xdef</span><span class="o">))))</span> 
   <span class="o">}</span>
   <span class="n">eval</span>
-<span class="o">}</span></pre></div>
-      </td>
-    </tr>
-    <tr id='section-6'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-6">&#182;</a>
-        </div>
-        <blockquote>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-6'>
+      <div class="docs"><blockquote>
 <p><strong>Definition (Substitution &ndash; Take 1):</strong>
 To substitute identiﬁer <code>i</code> in <code>e</code> with expression <code>v</code>, replace all 
 identiﬁers in <code>e</code> that have the name <code>i</code> with the expression <code>v</code>.</p>
 </blockquote>
-<p>Let&rsquo;s try to formalize this definition:</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre> 
-<span class="cm">/*    </span>
-<span class="cm"> val subst1 : (Exp,Symbol,Num) =&gt; Exp = (e,i,v) =&gt; e match {</span>
-<span class="cm">    case Num(n) =&gt; e</span>
-<span class="cm">    case Id(x) =&gt; if (x == i) v else e</span>
-<span class="cm">    case Add(l,r) =&gt; Add( subst1(l,i,v), subst1(r,i,v))</span>
-<span class="cm">    case Mul(l,r) =&gt; Mul( subst1(l,i,v), subst1(r,i,v))</span>
-<span class="cm">    case With(x,xdef,body) =&gt; With( if (x ==i) v else x,</span>
-<span class="cm">                                    subst1(xdef,i,v),</span>
-<span class="cm">                                    subst1(body,i,v))</span>
-<span class="cm">}</span>
-<span class="cm">*/</span></pre></div>
-      </td>
-    </tr>
-    <tr id='section-7'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-7">&#182;</a>
-        </div>
-        <p>Unfortunately this does not even type-check! And rightly so, because it might 
+<p>Let&rsquo;s try to formalize this definition:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="c1">// val subst1 : (Exp,Symbol,Num) =&gt; Exp = (e,i,v) =&gt; e match {</span>
+<span class="c1">//   case Num(n) =&gt; e</span>
+<span class="c1">//   case Id(x) =&gt; if (x == i) v else e</span>
+<span class="c1">//   case Add(l,r) =&gt; Add( subst1(l,i,v), subst1(r,i,v))</span>
+<span class="c1">//   case Mul(l,r) =&gt; Mul( subst1(l,i,v), subst1(r,i,v))</span>
+<span class="c1">//   case With(x,xdef,body) =&gt; With( if (x ==i) v else x,</span>
+<span class="c1">//                                   subst1(xdef,i,v),</span>
+<span class="c1">//                                   subst1(body,i,v))</span>
+<span class="c1">// }</span></pre></code></div>
+    </section>
+    <section id='section-7'>
+      <div class="docs"><p>Unfortunately this does not even type-check! And rightly so, because it might 
 otherwise turn reasonable programs into programs that are not even 
 syntactically legal anymore.</p>
 
@@ -264,34 +205,25 @@ To substitute identiﬁer <code>i</code> in <code>e</code> with expression <code
 identifiers in <code>e</code> which are not binding instances that have the name <code>i</code>
  with the expression <code>v</code>.</p>
 </blockquote>
-<p>Here is the formalization of this second definition:</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre><span class="k">val</span> <span class="n">subst2</span><span class="k">:</span> <span class="o">(</span><span class="kt">Exp</span><span class="o">,</span><span class="kt">Symbol</span><span class="o">,</span><span class="nc">Num</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Exp</span> <span class="k">=</span> <span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+<p>Here is the formalization of this second definition:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">subst2</span><span class="k">:</span> <span class="o">(</span><span class="kt">Exp</span><span class="o">,</span><span class="kt">Symbol</span><span class="o">,</span><span class="nc">Num</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Exp</span> <span class="k">=</span> <span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
     <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span>
     
-    <span class="cm">/* Bound or free instance =&gt; substitute if names match */</span>
+    <span class="c1">// Bound or free instance =&gt; substitute if names match</span>
     <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">i</span><span class="o">)</span> <span class="n">v</span> <span class="k">else</span> <span class="n">e</span>
     
     <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Add</span><span class="o">(</span> <span class="n">subst2</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> <span class="n">subst2</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
     <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Mul</span><span class="o">(</span> <span class="n">subst2</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> <span class="n">subst2</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
     
-    <span class="cm">/* Binding instance =&gt; do not substitute */</span>
+    <span class="c1">// Binding instance =&gt; do not substitute</span>
     <span class="k">case</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">xdef</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">With</span><span class="o">(</span> <span class="n">x</span><span class="o">,</span>
                                     <span class="n">subst2</span><span class="o">(</span><span class="n">xdef</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span>
                                     <span class="n">subst2</span><span class="o">(</span><span class="n">body</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
-<span class="o">}</span></pre></div>
-      </td>
-    </tr>
-    <tr id='section-8'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-8">&#182;</a>
-        </div>
-        <p>Let&rsquo;s create an interpreter that uses this substitution function.</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre><span class="k">def</span> <span class="n">eval2</span> <span class="k">=</span> <span class="n">makeEval</span><span class="o">(</span><span class="n">subst2</span><span class="o">)</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-8'>
+      <div class="docs"><p>Let&rsquo;s create an interpreter that uses this substitution function.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">eval2</span> <span class="k">=</span> <span class="n">makeEval</span><span class="o">(</span><span class="n">subst2</span><span class="o">)</span>
 
 <span class="n">assert</span><span class="o">(</span><span class="n">eval2</span><span class="o">(</span><span class="n">test</span><span class="o">)</span> <span class="o">==</span> <span class="mi">10</span><span class="o">)</span> <span class="c1">//=&gt; it works!</span>
 
@@ -301,15 +233,10 @@ identifiers in <code>e</code> which are not binding instances that have the name
 
 <span class="k">val</span> <span class="n">test3</span> <span class="k">=</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">)))</span>
 
-<span class="cm">/* assert(eval2(test3) == 8) */</span> <span class="c1">//=&gt; Bang! Result is 10 instead!</span></pre></div>
-      </td>
-    </tr>
-    <tr id='section-9'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-9">&#182;</a>
-        </div>
-        <p>What went wrong here? Our substitution algorithm respected binding instances, 
+<span class="c1">// assert(eval2(test3) == 8) //=&gt; Bang! Result is 10 instead!</span></pre></code></div>
+    </section>
+    <section id='section-9'>
+      <div class="docs"><p>What went wrong here? Our substitution algorithm respected binding instances, 
 but not their scope.
 In the sample expression, the with introduces a new scope for the inner <code>x</code>. 
 The scope of the outer <code>x</code> is <em>shadowed</em> or <em>masked</em> by the inner binding. 
@@ -321,16 +248,14 @@ To substitute identiﬁer <code>i</code> in <code>e</code> with expression <code
 binding identiﬁers in <code>e</code> having the name <code>i</code> with the expression <code>v</code>, 
 unless the identiﬁer is in a scope different from that introduced by <code>i</code>. </p>
 </blockquote>
-<p>So, what happens if we just forget to substitute into the body?</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre><span class="k">val</span> <span class="n">subst3</span><span class="k">:</span> <span class="o">(</span><span class="kt">Exp</span><span class="o">,</span><span class="kt">Symbol</span><span class="o">,</span><span class="nc">Num</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Exp</span> <span class="k">=</span> <span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+<p>So, what happens if we just forget to substitute into the body?</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">subst3</span><span class="k">:</span> <span class="o">(</span><span class="kt">Exp</span><span class="o">,</span><span class="kt">Symbol</span><span class="o">,</span><span class="nc">Num</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Exp</span> <span class="k">=</span> <span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
     <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span>
     <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">i</span><span class="o">)</span> <span class="n">v</span> <span class="k">else</span> <span class="n">e</span>
     <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Add</span><span class="o">(</span> <span class="n">subst3</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> <span class="n">subst3</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
     <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Mul</span><span class="o">(</span> <span class="n">subst3</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> <span class="n">subst3</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
 
-    <span class="cm">/* Here `body` is not substituted recursively: */</span>
+    <span class="c1">// Here `body` is not substituted recursively:</span>
     <span class="k">case</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">xdef</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">With</span><span class="o">(</span> <span class="n">x</span><span class="o">,</span> 
                                     <span class="n">subst3</span><span class="o">(</span><span class="n">xdef</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> 
                                     <span class="n">body</span><span class="o">)</span>
@@ -342,28 +267,16 @@ unless the identiﬁer is in a scope different from that introduced by <code>i</
 
 <span class="n">assert</span><span class="o">(</span><span class="n">eval3</span><span class="o">(</span><span class="n">test2</span><span class="o">)</span> <span class="o">==</span> <span class="mi">15</span><span class="o">)</span>
 
-<span class="n">assert</span><span class="o">(</span><span class="n">eval3</span><span class="o">(</span><span class="n">test3</span><span class="o">)</span> <span class="o">==</span> <span class="mi">8</span><span class="o">)</span> <span class="c1">//=&gt; Now test3 works!</span></pre></div>
-      </td>
-    </tr>
-    <tr id='section-10'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-10">&#182;</a>
-        </div>
-        <p>Adding another test, we see that this sadly is no true solution:</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre><span class="k">val</span> <span class="n">test4</span> <span class="k">=</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">)))</span>
+<span class="n">assert</span><span class="o">(</span><span class="n">eval3</span><span class="o">(</span><span class="n">test3</span><span class="o">)</span> <span class="o">==</span> <span class="mi">8</span><span class="o">)</span> <span class="c1">//=&gt; Now test3 works!</span></pre></code></div>
+    </section>
+    <section id='section-10'>
+      <div class="docs"><p>Adding another test, we see that this sadly is no true solution:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test4</span> <span class="k">=</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">)))</span>
 
-<span class="cm">/* assert(eval3(test4) == 10) */</span> <span class="c1">//=&gt; Bang! unbound variable: &#39;x</span></pre></div>
-      </td>
-    </tr>
-    <tr id='section-11'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-11">&#182;</a>
-        </div>
-        <p>The inner expression should result in an error, because <code>x</code> has no value. 
+<span class="c1">// assert(eval3(test4) == 10) //=&gt; Bang! unbound variable: &#39;x</span></pre></code></div>
+    </section>
+    <section id='section-11'>
+      <div class="docs"><p>The inner expression should result in an error, because <code>x</code> has no value. 
 Once again, substitution has changed a correct program into an incorrect one!</p>
 
 <p>Let’s understand what went wrong. Why didn’t we substitute the inner <code>x</code>? 
@@ -388,16 +301,14 @@ succint way of phrasing this deﬁnition:</p>
 To substitute identiﬁer <code>i</code> in <code>e</code> with expression <code>v</code>, replace all free 
 instances of <code>i</code> in <code>e</code> with <code>v</code>.</p>
 </blockquote>
-<p>A first attempt to implement this definition:</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre><span class="k">val</span> <span class="n">subst4</span><span class="k">:</span> <span class="o">(</span><span class="kt">Exp</span><span class="o">,</span><span class="kt">Symbol</span><span class="o">,</span><span class="nc">Num</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Exp</span> <span class="k">=</span> <span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+<p>A first attempt to implement this definition:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">subst4</span><span class="k">:</span> <span class="o">(</span><span class="kt">Exp</span><span class="o">,</span><span class="kt">Symbol</span><span class="o">,</span><span class="nc">Num</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Exp</span> <span class="k">=</span> <span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
     <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span>
     <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">i</span><span class="o">)</span> <span class="n">v</span> <span class="k">else</span> <span class="n">e</span>
     <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Add</span><span class="o">(</span> <span class="n">subst4</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> <span class="n">subst4</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
     <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Mul</span><span class="o">(</span> <span class="n">subst4</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> <span class="n">subst4</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
 
-    <span class="cm">/* Do not substitute when shadowed! */</span>
+    <span class="c1">// Do not substitute when shadowed!</span>
     <span class="k">case</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">xdef</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">i</span><span class="o">)</span> <span class="n">e</span> 
                               <span class="k">else</span> <span class="nc">With</span><span class="o">(</span> <span class="n">x</span><span class="o">,</span>
                                          <span class="n">subst4</span><span class="o">(</span><span class="n">xdef</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span>
@@ -416,15 +327,10 @@ instances of <code>i</code> in <code>e</code> with <code>v</code>.</p>
 
 <span class="k">val</span> <span class="n">test5</span> <span class="k">=</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="nc">With</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="-Symbol">&#39;x</span><span class="o">))</span>
 
-<span class="cm">/* assert(eval4(test5) == 5) */</span> <span class="c1">//=&gt; Bang! unbound variable &#39;x</span></pre></div>
-      </td>
-    </tr>
-    <tr id='section-12'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-12">&#182;</a>
-        </div>
-        <p>This program should evaluate to 5, but it too halts with an error. This is 
+<span class="c1">// assert(eval4(test5) == 5) //=&gt; Bang! unbound variable &#39;x</span></pre></code></div>
+    </section>
+    <section id='section-12'>
+      <div class="docs"><p>This program should evaluate to 5, but it too halts with an error. This is 
 because we prematurely stopped substituting for <code>x</code> occuring in a bound 
 position. We should substitute in the named expression of a <code>With</code> even if 
 the <code>With</code> in question deﬁnes a new scope for the identiﬁer being substituted, 
@@ -432,16 +338,14 @@ because its named expression is still in the scope of the enclosing binding
 of the identiﬁer.  </p>
 
 <p>We ﬁnally get a valid programmatic deﬁnition of substitution (relative to the 
-language we have so far):</p>
-      </td>
-      <td class=code>
-        <div class='highlight'><pre><span class="k">val</span> <span class="n">subst5</span><span class="k">:</span> <span class="o">(</span><span class="kt">Exp</span><span class="o">,</span><span class="kt">Symbol</span><span class="o">,</span><span class="nc">Num</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Exp</span> <span class="k">=</span> <span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+language we have so far):</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">subst5</span><span class="k">:</span> <span class="o">(</span><span class="kt">Exp</span><span class="o">,</span><span class="kt">Symbol</span><span class="o">,</span><span class="nc">Num</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Exp</span> <span class="k">=</span> <span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
     <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e</span>
     <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">i</span><span class="o">)</span> <span class="n">v</span> <span class="k">else</span> <span class="n">e</span>
     <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Add</span><span class="o">(</span> <span class="n">subst5</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> <span class="n">subst5</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
     <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Mul</span><span class="o">(</span> <span class="n">subst5</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span> <span class="n">subst5</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
 
-    <span class="cm">/* Handle shadowing inside of `body`, not in `xdef` */</span>
+    <span class="c1">// Handle shadowing inside of `body`, not in `xdef`</span>
     <span class="k">case</span> <span class="nc">With</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">xdef</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">With</span><span class="o">(</span> <span class="n">x</span><span class="o">,</span>
                                     <span class="n">subst5</span><span class="o">(</span><span class="n">xdef</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">),</span>
                                     <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">i</span><span class="o">)</span> <span class="n">body</span> <span class="k">else</span> <span class="n">subst5</span><span class="o">(</span><span class="n">body</span><span class="o">,</span><span class="n">i</span><span class="o">,</span><span class="n">v</span><span class="o">))</span>
@@ -457,18 +361,13 @@ language we have so far):</p>
 
 <span class="n">assert</span><span class="o">(</span><span class="n">eval5</span><span class="o">(</span><span class="n">test4</span><span class="o">)</span> <span class="o">==</span> <span class="mi">10</span><span class="o">)</span> 
 
-<span class="n">assert</span><span class="o">(</span><span class="n">eval5</span><span class="o">(</span><span class="n">test5</span><span class="o">)</span> <span class="o">==</span> <span class="mi">5</span><span class="o">)</span> <span class="c1">//=&gt; Success!</span>
+<span class="n">assert</span><span class="o">(</span><span class="n">eval5</span><span class="o">(</span><span class="n">test5</span><span class="o">)</span> <span class="o">==</span> <span class="mi">5</span><span class="o">)</span>  <span class="o">*=&gt;</span> <span class="nc">Success</span><span class="o">!</span>
 
  
- </pre></div>
-      </td>
-    </tr>
-    <tr id='section-Summary'>
-      <td class=docs>
-        <div class="pilwrap">
-          <a class="pilcrow" href="#section-Summary">&#182;</a>
-        </div>
-        <h2>Summary</h2>
+ </pre></code></div>
+    </section>
+    <section id='section-Summary'>
+      <div class="docs"><h2>Summary</h2>
 
 <p>In this section we tried to introduce binding of names to our WAE language. 
 Doing so we have learned that</p>
@@ -477,14 +376,10 @@ Doing so we have learned that</p>
 <li><p>Substitution can be used to understand the meaning of names in 
 programming languages.</p></li>
 <li><p>Correct implementations of substitution need to handle free, bound, 
-and binding instances of names and their scopes correctly.</p></li>
+and binding instances of names and their scopes correctly. </p></li>
 </ol>
-
-      </td>
-      <td class=code>
-        <div class='highlight'><pre></pre></div>
-      </td>
-    </tr>
-  </table>
 </div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+  </article>
 </body>

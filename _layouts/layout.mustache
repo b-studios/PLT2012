@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ stylesheet }}">
+</head>
+<body>
+  <header>
+    {{#sources?}}
+  <nav>
+    <ul>    
+        {{#sources}}
+        <li><a href="{{ url }}">{{ basename }}</a></li>
+        {{/sources}}
+    </ul>
+  </nav>
+  {{/sources?}}
+  </header>
+  <article id="documentation">
+    {{#sections}}
+    <section id='section-{{ section_id }}'>
+      <div class="docs">{{{ docs }}}</div>
+      <div class="code"><code class='highlight'><pre>{{{ code }}}</pre></code></div>
+    </section>
+    {{/sections}}
+  </article>
+</body>

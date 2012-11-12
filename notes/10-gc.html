@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>10-gc.scala</title>
+  <link rel="stylesheet" href="../recources/style.css">
+</head>
+<body>
+  <header>
+  <nav>
+    <ul>    
+        <li><a href="10-gc.html">10-gc.scala</a></li>
+        <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="3-wae.html">3-wae.scala</a></li>
+        <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
+        <li><a href="5-fae.html">5-fae.scala</a></li>
+        <li><a href="6-lcfae.html">6-lcfae.scala</a></li>
+        <li><a href="8-rcfae.html">8-rcfae.scala</a></li>
+        <li><a href="9-bcfae.html">9-bcfae.scala</a></li>
+    </ul>
+  </nav>
+  </header>
+  <article id="documentation">
+    <section id='section-1'>
+      <div class="docs"><p>These are lecture notes for the &ldquo;Programming Languages and Types&rdquo;
+course by Klaus Ostermann at the University of Marburg</p>
+
+<p>loosely based on Sec. 13 of &ldquo;Programming Languages: Application and
+Interpretation&rdquo; by Shriram Krishnamurthi</p>
+
+<p>Please comment/correct/improve these notes via github. Proposals or
+questions can be submitted as an &ldquo;issue&rdquo;; proposals for
+corrections/extensions/improvements can be submitted as a &ldquo;pull
+request&rdquo;. You can of course also send an email to Klaus Ostermann</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-2'>
+      <div class="docs"><p>Let us now consider a more accurate modeling of garbage collection
+(gc). This time, we will use a mutable store instead of a
+functional store, because our purpose is not to explain mutation
+but to explain gc.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">import</span> <span class="nn">scala.collection.mutable.ArraySeq</span></pre></code></div>
+    </section>
+    <section id='section-3'>
+      <div class="docs"><p>This is the well-known syntax of our language: FAE with boxes.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">If0</span><span class="o">(</span><span class="n">cond</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">thenExp</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">elseExp</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">num2exp</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">id2exp</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Id</span><span class="o">(</span><span class="n">s</span><span class="o">)</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">App</span> <span class="o">(</span><span class="n">funExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">argExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">def</span> <span class="n">wth</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">xdef</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">),</span><span class="n">xdef</span><span class="o">)</span>
+
+<span class="k">case</span> <span class="k">class</span> <span class="nc">NewBox</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">SetBox</span><span class="o">(</span><span class="n">b</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">OpenBox</span><span class="o">(</span><span class="n">b</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Seq</span><span class="o">(</span><span class="n">e1</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">e2</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span></pre></code></div>
+    </section>
+    <section id='section-4'>
+      <div class="docs"><p>We will equip our values with a mutable flag that is useful for
+mark-and-sweep garbage collection. In real systems it is
+implemented as a bit flag, or, if the so-called &ldquo;tri-color
+algorithm&rdquo; is used, with two bit flags.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Value</span> <span class="o">{</span> 
+  <span class="k">var</span> <span class="n">marked</span> <span class="k">:</span> <span class="kt">Boolean</span> <span class="o">=</span> <span class="kc">false</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-5'>
+      <div class="docs"><p>We will also use a mutable map instead of a map for environments.
+This is not needed for mark-and-sweep, but for copying garbage
+collectors such as Cheney&rsquo;s semi-space garbage collection
+algorithm.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">type</span> <span class="kt">Env</span> <span class="o">=</span> <span class="n">scala</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">mutable</span><span class="o">.</span><span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>, <span class="kt">Value</span><span class="o">]</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Fun</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">AddressV</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span></pre></code></div>
+    </section>
+    <section id='section-6'>
+      <div class="docs"><p>To be able to experiment with different store and gc designs, we
+create an interface for stores. The stack parameter in malloc is
+needed during gc to determine the root nodes from which the
+algorithms can start.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">trait</span> <span class="nc">Store</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">malloc</span><span class="o">(</span><span class="n">stack</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Env</span><span class="o">],</span> <span class="n">v</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Int</span>
+  <span class="k">def</span> <span class="n">update</span><span class="o">(</span><span class="n">index</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">v</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Unit</span>
+  <span class="k">def</span> <span class="n">apply</span><span class="o">(</span><span class="n">index</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Value</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-7'>
+      <div class="docs"><p>In our interpreter, the stack of environments is only implicitly
+available on the stack of the meta-language. To reify the call-
+stack we need to make it explicit. We do so by constructing the
+stack explicitly and passing it as parameter. The first element
+of the stack is the current environment; the rest is only needed
+for gc.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">stack</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Env</span><span class="o">],</span> <span class="n">store</span><span class="k">:</span> <span class="kt">Store</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Value</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+
+  <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">stack</span><span class="o">.</span><span class="n">head</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+
+  <span class="k">case</span> <span class="n">f</span><span class="nd">@Fun</span><span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">stack</span><span class="o">.</span><span class="n">head</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-8'>
+      <div class="docs"><p>With a mutable store, we do not have to thread it according to
+the order of evaluation any more.</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">case</span> <span class="nc">If0</span><span class="o">(</span><span class="n">cond</span><span class="o">,</span> <span class="n">thenExp</span><span class="o">,</span> <span class="n">elseExp</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">cond</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="nc">NumV</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">thenExp</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">)</span>
+         <span class="k">case</span> <span class="k">_</span>       <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">elseExp</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">)</span>
+       <span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-9'>
+      <div class="docs"><p>The mutable store allows us to take advantage of Scala&rsquo;s
+evaluation order and perform two pattern matchings
+simultaneously.</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">r</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">),</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span> <span class="o">+</span> <span class="n">v2</span><span class="o">)</span>
+         <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+       <span class="o">}</span>
+
+  <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">r</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">),</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span> <span class="o">*</span> <span class="n">v2</span><span class="o">)</span>
+         <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only multiply numbers&quot;</span><span class="o">)</span>
+       <span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-10'>
+      <div class="docs"><p>A new environment should be pushed onto the stack only when
+binding occurs. Where exactly in BCFAE do bindings happen?</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">a</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">cEnv</span><span class="o">)</span>
+           <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">body</span><span class="o">,</span>
+                <span class="o">(</span><span class="n">cEnv</span> <span class="o">+</span> <span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">param</span> <span class="o">-&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">)))</span> <span class="o">::</span> <span class="n">stack</span><span class="o">,</span>
+                <span class="n">store</span>
+              <span class="o">)</span>
+         <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+       <span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-11'>
+      <div class="docs"><p>The mutable store allows us to implement Seq-expression
+in terms of sequencing in Scala itself.</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">case</span> <span class="nc">Seq</span><span class="o">(</span><span class="n">e1</span><span class="o">,</span> <span class="n">e2</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">e1</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">);</span> <span class="n">eval</span><span class="o">(</span><span class="n">e2</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">)</span>
+
+  <span class="k">case</span> <span class="nc">NewBox</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="o">{</span>
+         <span class="k">val</span> <span class="n">a</span> <span class="k">=</span> <span class="n">store</span><span class="o">.</span><span class="n">malloc</span><span class="o">(</span><span class="n">stack</span><span class="o">,</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">))</span>
+         <span class="nc">AddressV</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+       <span class="o">}</span>
+
+  <span class="k">case</span> <span class="nc">SetBox</span><span class="o">(</span><span class="n">b</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">b</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="nc">AddressV</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+           <span class="k">=&gt;</span> <span class="o">{</span>
+                <span class="k">val</span> <span class="n">ev</span> <span class="k">=</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">)</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">update</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">ev</span><span class="o">)</span>
+                <span class="n">ev</span>
+              <span class="o">}</span>
+         <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only set boxes&quot;</span><span class="o">)</span>
+       <span class="o">}</span>
+
+  <span class="k">case</span> <span class="nc">OpenBox</span><span class="o">(</span><span class="n">b</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">b</span><span class="o">,</span> <span class="n">stack</span><span class="o">,</span> <span class="n">store</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="nc">AddressV</span><span class="o">(</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">store</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+         <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only open boxes&quot;</span><span class="o">)</span>
+       <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-12'>
+      <div class="docs"><p>Here is one implementation of the Store interface that does not
+perform gc. It just runs out of memory once the store is full.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">class</span> <span class="nc">NoGCStore</span><span class="o">(</span><span class="n">size</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Store</span> <span class="o">{</span>
+
+  <span class="k">val</span> <span class="n">memory</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">ArraySeq</span><span class="o">[</span><span class="kt">Value</span><span class="o">](</span><span class="n">size</span><span class="o">)</span>
+
+  <span class="k">var</span> <span class="n">nextFreeAddr</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="mi">0</span>
+
+  <span class="k">def</span> <span class="n">malloc</span><span class="o">(</span><span class="n">stack</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Env</span><span class="o">],</span> <span class="n">v</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="o">{</span>
+    <span class="k">val</span> <span class="n">x</span> <span class="k">=</span> <span class="n">nextFreeAddr</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="n">size</span><span class="o">)</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;out of memory&quot;</span><span class="o">)</span>
+    <span class="n">nextFreeAddr</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="n">update</span><span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">v</span><span class="o">)</span>
+    <span class="n">x</span>
+  <span class="o">}</span>
+
+  <span class="k">def</span> <span class="n">update</span><span class="o">(</span><span class="n">index</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">v</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="n">memory</span><span class="o">.</span><span class="n">update</span><span class="o">(</span><span class="n">index</span><span class="o">,</span> <span class="n">v</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="n">apply</span><span class="o">(</span><span class="n">index</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">memory</span><span class="o">(</span><span class="n">index</span><span class="o">)</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-13'>
+      <div class="docs"><p>Here is a mark-and-sweep garbage collector.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">class</span> <span class="nc">MarkAndSweepStore</span><span class="o">(</span><span class="n">size</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Store</span> <span class="o">{</span>
+
+  <span class="k">val</span> <span class="n">memory</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">ArraySeq</span><span class="o">[</span><span class="kt">Value</span><span class="o">](</span><span class="n">size</span><span class="o">)</span>
+
+  <span class="k">var</span> <span class="n">free</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">size</span>
+
+  <span class="k">var</span> <span class="n">nextFreeAddr</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="mi">0</span>
+
+  <span class="k">def</span> <span class="n">malloc</span><span class="o">(</span><span class="n">stack</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Env</span><span class="o">],</span> <span class="n">v</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="o">{</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">free</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="o">)</span> <span class="n">gc</span><span class="o">(</span><span class="n">stack</span><span class="o">)</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">free</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="o">)</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;out of memory&quot;</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-14'>
+      <div class="docs"><p>Here we find the next available location in memory via a while-
+loop. In order to avoid maintaining a list of available spaces
+(because we are lazy), let us assume that no box created in
+BCFAE can has an address pointing to a null memory cell (which
+also is the case).</p>
+
+<p>If we ensure the invariant that the variable <code>free</code> has always
+the number of free memory space, then the following loop will
+always halt. The nontermination situation will generate an out-
+of-memory error and the program will abort.</p></div>
+      <div class="code"><code class='highlight'><pre>    <span class="k">while</span> <span class="o">(</span><span class="n">memory</span><span class="o">(</span><span class="n">nextFreeAddr</span><span class="o">)</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+      <span class="n">nextFreeAddr</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="k">if</span> <span class="o">(</span><span class="n">nextFreeAddr</span> <span class="o">==</span> <span class="n">size</span><span class="o">)</span> <span class="n">nextFreeAddr</span> <span class="k">=</span> <span class="mi">0</span>
+    <span class="o">}</span>
+
+    <span class="n">free</span> <span class="o">-=</span> <span class="mi">1</span>
+    <span class="n">update</span><span class="o">(</span><span class="n">nextFreeAddr</span><span class="o">,</span> <span class="n">v</span><span class="o">)</span>
+    <span class="n">nextFreeAddr</span>
+  <span class="o">}</span>
+
+  <span class="k">def</span> <span class="n">update</span><span class="o">(</span><span class="n">index</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">v</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="n">memory</span><span class="o">.</span><span class="n">update</span><span class="o">(</span><span class="n">index</span><span class="o">,</span> <span class="n">v</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="n">apply</span><span class="o">(</span><span class="n">index</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">memory</span><span class="o">(</span><span class="n">index</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="n">allAddrInVal</span><span class="o">(</span><span class="n">v</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="n">v</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">AddressV</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>      <span class="k">=&gt;</span> <span class="nc">Set</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+    <span class="k">case</span> <span class="nc">NumV</span><span class="o">(</span><span class="k">_</span><span class="o">)</span>          <span class="k">=&gt;</span> <span class="nc">Set</span><span class="o">.</span><span class="n">empty</span>
+    <span class="k">case</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">allAddrInEnv</span><span class="o">(</span><span class="n">env</span><span class="o">)</span>
+  <span class="o">}</span>
+
+  <span class="k">def</span> <span class="n">allAddrInEnv</span><span class="o">(</span><span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span>
+    <span class="n">env</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="n">allAddrInVal</span> <span class="k">_</span><span class="o">).</span><span class="n">fold</span><span class="o">(</span><span class="nc">Set</span><span class="o">.</span><span class="n">empty</span><span class="o">)(</span><span class="k">_</span> <span class="n">union</span> <span class="k">_</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="n">mark</span><span class="o">(</span><span class="n">seed</span><span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span> <span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+    <span class="n">seed</span><span class="o">.</span><span class="n">foreach</span><span class="o">(</span><span class="n">memory</span><span class="o">(</span><span class="k">_</span><span class="o">).</span><span class="n">marked</span> <span class="k">=</span> <span class="kc">true</span><span class="o">)</span>
+    <span class="k">val</span> <span class="n">newAddresses</span> <span class="k">=</span> <span class="n">seed</span><span class="o">.</span><span class="n">flatMap</span><span class="o">(</span>
+                         <span class="n">ad</span> <span class="k">=&gt;</span> <span class="n">allAddrInVal</span><span class="o">(</span><span class="n">memory</span><span class="o">(</span><span class="n">ad</span><span class="o">))</span>
+                       <span class="o">).</span><span class="n">filter</span><span class="o">(!</span><span class="n">memory</span><span class="o">(</span><span class="k">_</span><span class="o">).</span><span class="n">marked</span><span class="o">)</span>
+    <span class="k">if</span><span class="o">(</span><span class="n">newAddresses</span> <span class="o">!=</span> <span class="nc">Set</span><span class="o">.</span><span class="n">empty</span><span class="o">)</span> <span class="o">{</span>
+      <span class="n">mark</span><span class="o">(</span><span class="n">newAddresses</span><span class="o">)</span>
+    <span class="o">}</span>
+  <span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-15'>
+      <div class="docs"><p>What graph algorithm underlies the mark step as implemented here?
+What potential problem it could cause in a &ldquo;real&rdquo; interpreter?</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">def</span> <span class="n">sweep</span><span class="o">()</span> <span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+    <span class="n">memory</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">foreach</span><span class="o">(</span>
+      <span class="n">index</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(!</span><span class="n">memory</span><span class="o">(</span><span class="n">index</span><span class="o">).</span><span class="n">marked</span><span class="o">)</span> <span class="o">{</span>
+                 <span class="n">free</span> <span class="o">+=</span> <span class="mi">1</span>
+                 <span class="n">memory</span><span class="o">(</span><span class="n">index</span><span class="o">)</span> <span class="k">=</span> <span class="kc">null</span>
+               <span class="o">}</span>
+               <span class="k">else</span> <span class="o">{</span></pre></code></div>
+    </section>
+    <section id='section-16'>
+      <div class="docs"><p>Reset <code>marked</code> flag for the next gc</p></div>
+      <div class="code"><code class='highlight'><pre>                 <span class="n">memory</span><span class="o">(</span><span class="n">index</span><span class="o">).</span><span class="n">marked</span> <span class="k">=</span> <span class="kc">false</span>
+               <span class="o">}</span>
+    <span class="o">)</span>
+  <span class="o">}</span>
+
+  <span class="k">def</span> <span class="n">gc</span><span class="o">(</span><span class="n">stack</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Env</span><span class="o">])</span> <span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+    <span class="n">println</span><span class="o">(</span><span class="s">&quot;\nSTARTING GC\nSTACK = &quot;</span> <span class="o">+</span> <span class="n">stack</span> <span class="o">+</span> <span class="s">&quot;\nSTORE = &quot;</span> <span class="o">+</span> <span class="n">memory</span><span class="o">)</span>
+    <span class="n">mark</span><span class="o">(</span><span class="n">stack</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="n">allAddrInEnv</span> <span class="k">_</span><span class="o">).</span><span class="n">fold</span><span class="o">(</span><span class="nc">Set</span><span class="o">.</span><span class="n">empty</span><span class="o">)(</span><span class="k">_</span> <span class="n">union</span> <span class="k">_</span><span class="o">))</span>
+    <span class="n">sweep</span><span class="o">()</span>
+    <span class="n">println</span><span class="o">(</span><span class="s">&quot;GC COMPLETE\nSTORE = &quot;</span> <span class="o">+</span> <span class="n">memory</span> <span class="o">+</span>
+            <span class="s">&quot;\nNUMBER OF FREE SLOTS = &quot;</span> <span class="o">+</span> <span class="n">free</span><span class="o">)</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="k">val</span> <span class="n">test4</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;makedata</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">NewBox</span><span class="o">(</span><span class="nc">NewBox</span><span class="o">(</span><span class="nc">NewBox</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">)))),</span>
+                <span class="nc">Seq</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;makedata</span><span class="o">,</span> <span class="mi">1</span><span class="o">),</span>
+                <span class="nc">Seq</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;makedata</span><span class="o">,</span> <span class="mi">2</span><span class="o">),</span>
+                <span class="nc">Seq</span><span class="o">(</span><span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;s</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;makedata</span><span class="o">,</span> <span class="mi">3</span><span class="o">),</span>
+                            <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;makedata</span><span class="o">,</span> <span class="-Symbol">&#39;s</span><span class="o">)),</span>
+                    <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;makedata</span><span class="o">,</span> <span class="mi">4</span><span class="o">)))))</span>
+
+<span class="k">def</span> <span class="n">runTest4</span> <span class="k">=</span> <span class="n">eval</span><span class="o">(</span>
+                 <span class="n">test4</span><span class="o">,</span>
+                 <span class="nc">List</span><span class="o">(</span><span class="n">scala</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">mutable</span><span class="o">.</span><span class="nc">Map</span><span class="o">.</span><span class="n">empty</span><span class="o">),</span>
+                 <span class="k">new</span> <span class="nc">MarkAndSweepStore</span><span class="o">(</span><span class="mi">5</span><span class="o">)</span>
+               <span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-17'>
+      <div class="docs"><p>This model of garbage collection does not illustrate the difficulty
+of memory management. In most languages, the size of the allocated
+memory regions on the heap vary, and hence one needs an algorithm
+to find a free and large-enough spot on the heap. There are various
+algorithms and heuristics (best-fit, worst-fit, first-fit, &hellip;) for
+that purpose.</p>
+
+<p>There are also various alternative gc designs. Mark-and-sweep is a
+non-moving algorithm, where reachable heap objects are never moved.
+In contrast to that, copying gc algorithms move the reachable
+objects to a different portion of the heap. One of the oldest
+algorithms is the semi-space garbage collector, in particular with
+the implementation purpose.</p>
+
+<pre><code> http://www.cs.umd.edu/class/fall2002/cmsc631/cheney/cheney.html
+</code></pre>
+
+<p>Topic for class discussion: What are the pros and cons of moving
+vs. non-moving gc?</p>
+
+<p>It can be shown empirically that most unreachable objects become
+unreachable while they are still young. Generational gc algorithms
+take this empirical fact into account and divide the objects into
+generations, whereby the (small) youngest generation of objects is
+garbage-collected more frequently.</p>
+
+<p>A typical problem of the simple gc algorithms we discussed is the
+stop-the-world phenomenon: All execution has to be stopped during a
+gc cycle. This issue is addressed by incremental or concurrent
+garbage collectors. Incremental garbage collectors typically reduce
+the total throughput but increase responsiveness and real-time
+behavior.</p>
+
+<p>A completely different approach to memory management is <em>reference
+counting</em>. In reference counting, each object on the heap (in our
+case, each box) maintains a counter which says how many pointers
+currently point to that object. The counter is adjusted whenever a
+pointer variable is assigned to this object (incremented), or from
+this object to another object (decremented). When the counter is 0,
+the object can be reclaimed.</p>
+
+<p>The obvious disadvantage of reference counting is that it cannot
+detect cycles on the heap. Hence reference counting algorithm must
+be augmented with some means to detect cycles.</p>
+
+<p>Topic for class discussion: What are the pros and cons of reference
+counting vs. tracing garbage collectors such as mark-and-sweep or
+semi-space?</p>
+</div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+  </article>
+</body>

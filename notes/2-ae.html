@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>2-ae.scala</title>
+  <link rel="stylesheet" href="../recources/style.css">
+</head>
+<body>
+  <header>
+  <nav>
+    <ul>    
+        <li><a href="10-gc.html">10-gc.scala</a></li>
+        <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="3-wae.html">3-wae.scala</a></li>
+        <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
+        <li><a href="5-fae.html">5-fae.scala</a></li>
+        <li><a href="6-lcfae.html">6-lcfae.scala</a></li>
+        <li><a href="8-rcfae.html">8-rcfae.scala</a></li>
+        <li><a href="9-bcfae.html">9-bcfae.scala</a></li>
+    </ul>
+  </nav>
+  </header>
+  <article id="documentation">
+    <section id='section-Introduction_to_Scala_and_interpreters'>
+      <div class="docs"><h1>Introduction to Scala and interpreters</h1>
+
+<p>This file can be executed with the scala interactive interpreter.
+Invoke <code>scala</code> in the directory this file is in and then <code>:load 2-ae.scala</code></p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-Imlementation_of_a_Simple_Interpreter'>
+      <div class="docs"><h2>Imlementation of a Simple Interpreter </h2>
+
+<p>Case classes offer a convenient way to define a data type with variants, as 
+they occur typically in abstract syntax trees.</p>
+
+<p>Here is a simple example for a language that features arithmetic expressions 
+with variables. The sealed keyword means that all subclasses must be defined 
+in this file. It enables completeness checks for pattern matches.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span> 
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span> </pre></code></div>
+    </section>
+    <section id='section-3'>
+      <div class="docs"><p>Symbols are similar to strings, but they are implicitly &ldquo;canonicalized&rdquo; 
+(meaning all instances of the same symbol point to a unique copy, in other 
+words, they are not cloned but shared) and  can hence be compared 
+efficiently. 
+Unlike strings, they can not be manipulated. They can be constructed by 
+prefixing an identifier with a &lsquo;</p>
+
+<p>Here is a sample program written in this language, directly written down 
+using case class constructors:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test0</span> <span class="k">=</span> <span class="nc">Add</span><span class="o">(</span><span class="nc">Mul</span><span class="o">(</span><span class="nc">Id</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">),</span><span class="nc">Num</span><span class="o">(</span><span class="mi">2</span><span class="o">)),</span><span class="nc">Add</span><span class="o">(</span><span class="nc">Id</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">),</span><span class="nc">Id</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">)))</span></pre></code></div>
+    </section>
+    <section id='section-4'>
+      <div class="docs"><p>With a proper parser we could choose a syntax like <code>x*2+y+y</code>.
+We do not care much about concrete syntax and parsing, though. That said, to 
+make writing examples less verbose, Scala&rsquo;s implicits come to the rescue.</p>
+
+<p>Calls to implicit functions are inserted automatically by the compiler if 
+they help to restore well-typedness. For instance, we can define:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">implicit</span> <span class="k">def</span> <span class="n">num2exp</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">sym2exp</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-5'>
+      <div class="docs"><p>To lift integers and symbols to expressions. Using these implicits, the 
+example can be written as:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test</span> <span class="k">=</span> <span class="nc">Add</span><span class="o">(</span><span class="nc">Mul</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="mi">2</span><span class="o">),</span><span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span><span class="-Symbol">&#39;y</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-6'>
+      <div class="docs"><p>To give meaning to identifiers, we use <em>environments</em>. Environments are
+mappings from identifiers (which we represent as symbols) to values.
+In our simple language the only values are integers, hence:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">type</span> <span class="kt">Env</span> <span class="o">=</span> <span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>,<span class="kt">Int</span><span class="o">]</span></pre></code></div>
+    </section>
+    <section id='section-7'>
+      <div class="docs"><p>An evaluator (or interpreter) for this language takes an expression and
+an environment as parameter and produces a value &ndash; in this case <code>Int</code>.</p>
+
+<p>The interpreter illustrates how pattern matching over case classes works:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">n</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">env</span><span class="o">)</span> <span class="o">+</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">env</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">env</span><span class="o">)</span> <span class="o">*</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">env</span><span class="o">)</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-8'>
+      <div class="docs"><p>A different (and arguably more &ldquo;object-oriented&rdquo;) way to implement this
+evaluator would be to add an abstract <code>eval</code> method to the Exp class and
+override it in all subclasses, each implementation corresponding to its
+corresponding case in the pattern match. The choice between these 
+alternatives matters, since they support different dimensions of 
+extensibility.</p>
+
+<p>We will mainly use the more functional style using pattern matching, because
+it fits better to the order in which we present these topics in the lecture.</p>
+
+<p>To try the example, we need a sample environment that gives values to the 
+(free) variables in the sample expression. The test environment also 
+illustrates how Scala supports direct definitions of constant maps.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">testEnv</span> <span class="k">=</span> <span class="nc">Map</span><span class="o">(</span><span class="-Symbol">&#39;x</span> <span class="o">-&gt;</span> <span class="mi">3</span><span class="o">,</span> <span class="-Symbol">&#39;y</span> <span class="o">-&gt;</span> <span class="mi">4</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-9'>
+      <div class="docs"><p>We can automatically test our evaluator using assert:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="n">assert</span><span class="o">(</span> <span class="n">eval</span><span class="o">(</span><span class="n">test</span><span class="o">,</span> <span class="n">testEnv</span><span class="o">)</span> <span class="o">==</span> <span class="mi">14</span> <span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-Folding_and_Visitors'>
+      <div class="docs"><h2>Folding and Visitors</h2>
+
+<p>We will now learn a different way to encode algorithms that operate on 
+expressions (like the evaluator).
+To this end, we will now use so-called &ldquo;folds&rdquo;. Folds are well-known for 
+lists, but the concept is more general and applies to arbitrary algebraic 
+data types.</p>
+
+<p>We will present folds in such a style that they resemble visitors as known
+from the OO design pattern literature. They correspond to so-called
+&ldquo;internal visitors&rdquo; in which the traversal is encoded within the <code>accept</code> 
+function.</p>
+
+<p>An internal visitor consists of one function for each syntactic construct of
+the language. It has a type parameter that determines the &ldquo;return type&rdquo; of 
+invoking the visitor on an expression. This type parameter is used in all 
+positions in which the original syntax specifies a subexpression.</p>
+
+<p>Internal visitors also correspond to a &ldquo;bottom-up&rdquo; traversal of the 
+syntax tree.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">case</span> <span class="k">class</span> <span class="nc">Visitor</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">num</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=&gt;</span> <span class="n">T</span><span class="o">,</span> <span class="n">add</span><span class="k">:</span> <span class="o">(</span><span class="kt">T</span><span class="o">,</span><span class="kt">T</span><span class="o">)</span><span class="k">=&gt;</span><span class="n">T</span><span class="o">,</span> <span class="n">mul</span><span class="k">:</span> <span class="o">(</span><span class="kt">T</span><span class="o">,</span><span class="kt">T</span><span class="o">)</span><span class="k">=&gt;</span><span class="n">T</span><span class="o">,</span> <span class="n">id</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">=&gt;</span><span class="n">T</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-11'>
+      <div class="docs"><p>An alternative to this design is to define <code>num</code>, <code>add</code>, <code>mul</code>, <code>id</code> as 
+abstract methods and then create concrete visitors by subclassing or trait 
+composition.</p>
+
+<p>The fold function itself applies a visitor to an expression.
+Note that the recursion is performed in the fold function, hence all visitors
+are not recursive.</p>
+
+<p>Also note that this design enforces that all algorithms specified via this 
+visitor interfaces are compositional by design. This means that the recursion
+structure of the algorithm corresponds to the recursion structure of the 
+expression. Put in another way, it means that the semantics (in terms of the 
+meta-language) of a composite expression is determined by the semantics of 
+the subexpressions; the syntax of the subexpressions is irrelevant.</p>
+
+<p>Compositional specifications are particularly nice because they enable 
+&ldquo;equational reasoning&rdquo;: Subexpressions can be replaced by other 
+subexpressions with the same semantics without changing the semantics of the 
+whole.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">foldExp</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">v</span><span class="k">:</span> <span class="kt">Visitor</span><span class="o">[</span><span class="kt">T</span><span class="o">],</span> <span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">T</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">v</span><span class="o">.</span><span class="n">num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+    <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">v</span><span class="o">.</span><span class="n">id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+    <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">v</span><span class="o">.</span><span class="n">add</span><span class="o">(</span><span class="n">foldExp</span><span class="o">(</span><span class="n">v</span><span class="o">,</span><span class="n">l</span><span class="o">),</span> <span class="n">foldExp</span><span class="o">(</span><span class="n">v</span><span class="o">,</span><span class="n">r</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">v</span><span class="o">.</span><span class="n">mul</span><span class="o">(</span><span class="n">foldExp</span><span class="o">(</span><span class="n">v</span><span class="o">,</span><span class="n">l</span><span class="o">),</span> <span class="n">foldExp</span><span class="o">(</span><span class="n">v</span><span class="o">,</span><span class="n">r</span><span class="o">))</span>
+  <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-12'>
+      <div class="docs"><p>Here is our evaluator from above rephrased using the visitor infrastructure:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">evalVisitor</span> <span class="k">=</span> <span class="nc">Visitor</span><span class="o">[</span><span class="kt">Env</span><span class="k">=&gt;</span><span class="kt">Int</span><span class="o">](</span>
+  <span class="n">env</span> <span class="k">=&gt;</span> <span class="k">_</span><span class="o">,</span> 
+  <span class="o">(</span><span class="n">a</span><span class="o">,</span><span class="n">b</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">env</span> <span class="k">=&gt;</span> <span class="n">a</span><span class="o">(</span><span class="n">env</span><span class="o">)+</span><span class="n">b</span><span class="o">(</span><span class="n">env</span><span class="o">),</span>
+  <span class="o">(</span><span class="n">a</span><span class="o">,</span><span class="n">b</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">env</span> <span class="k">=&gt;</span> <span class="n">a</span><span class="o">(</span><span class="n">env</span><span class="o">)*</span><span class="n">b</span><span class="o">(</span><span class="n">env</span><span class="o">),</span>
+  <span class="n">x</span> <span class="k">=&gt;</span> <span class="n">env</span> <span class="k">=&gt;</span> <span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+<span class="o">)</span> </pre></code></div>
+    </section>
+    <section id='section-13'>
+      <div class="docs"><p>We can of course also restore the original interface of eval</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">eval2</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">=</span> <span class="n">foldExp</span><span class="o">(</span><span class="n">evalVisitor</span><span class="o">,</span><span class="n">e</span><span class="o">)(</span><span class="n">env</span><span class="o">)</span> </pre></code></div>
+    </section>
+    <section id='section-14'>
+      <div class="docs"><p>Let&rsquo;s test whether it works.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="n">assert</span><span class="o">(</span> <span class="n">eval2</span><span class="o">(</span><span class="n">test</span><span class="o">,</span><span class="n">testEnv</span><span class="o">)</span> <span class="o">==</span> <span class="mi">14</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-15'>
+      <div class="docs"><p>We can of course also apply other algorithms using visitors, such as counting
+the number of &ldquo;Num&rdquo; literals, or printing to a string:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">countVisitor</span> <span class="k">=</span> <span class="nc">Visitor</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span> <span class="k">_=&gt;</span><span class="mi">1</span><span class="o">,</span> <span class="k">_</span><span class="o">+</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">+</span><span class="k">_</span><span class="o">,</span> <span class="k">_=&gt;</span><span class="mi">0</span><span class="o">)</span> 
+<span class="k">val</span> <span class="n">printVisitor</span> <span class="k">=</span> <span class="nc">Visitor</span><span class="o">[</span><span class="kt">String</span><span class="o">](</span>
+  <span class="k">_</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">toString</span><span class="o">,</span> 
+  <span class="s">&quot;(&quot;</span><span class="o">+</span><span class="k">_</span><span class="o">+</span><span class="s">&quot;+&quot;</span><span class="o">+</span><span class="k">_</span><span class="o">+</span><span class="s">&quot;)&quot;</span><span class="o">,</span> 
+  <span class="k">_</span><span class="o">+</span><span class="s">&quot;*&quot;</span><span class="o">+</span><span class="k">_</span><span class="o">,</span>
+  <span class="k">_</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">toString</span>
+<span class="o">)</span>
+
+<span class="k">def</span> <span class="n">countNums</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="n">foldExp</span><span class="o">(</span><span class="n">countVisitor</span><span class="o">,</span> <span class="n">e</span><span class="o">)</span> 
+
+<span class="n">assert</span><span class="o">(</span><span class="n">countNums</span><span class="o">(</span><span class="n">test</span><span class="o">)</span> <span class="o">==</span> <span class="mi">1</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-Church_Encoding'>
+      <div class="docs"><h2>Church Encoding</h2>
+
+<p>We will now learn a different &ldquo;data-less&rdquo; representation of expressions 
+inspired by the visitor infrastructure above. This representation is called 
+&ldquo;Church Encoding&rdquo; or sometimes, when used in statically typed languages, 
+&ldquo;Böhm-Berarducci Encoding&rdquo;.</p>
+
+<p>The idea of this representation is that the expression tree is a kind of 
+intermediate result that we can skip and go straight to the result of 
+applying a visitor. That is, we represent an expression by a function that 
+will call the &ldquo;right&rdquo; functions of a visitor.</p>
+
+<p>For instance, we want to represent the expression &ldquo;test&rdquo; by the function:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">foldForTest</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">v</span><span class="k">:</span> <span class="kt">Visitor</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">:</span> <span class="kt">T</span> <span class="o">=</span> <span class="n">foldExp</span><span class="o">(</span><span class="n">v</span><span class="o">,</span> <span class="n">test</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-17'>
+      <div class="docs"><p>Except that we want to skip the construction (in the definition of test) and 
+subsequent deconstruction (in the pattern match of <code>foldExp</code>) of the data 
+type and represent the expression directly by the corresponding sequence of 
+calls to the visitor.</p>
+
+<p>One advantage of this &ldquo;data-less&rdquo; representation is that, due to short-
+circuiting the construction and subsequent deconstruction of the abstract 
+syntax tree, the interpreter is more efficient. For instance, no pattern 
+matching is needed anymore.</p>
+
+<p>Recommended exercise: &ldquo;Partially evaluate&rdquo; <code>foldForTest</code>, that is, inline the 
+definition of <code>foldExp</code> and specialize it to the case <code>e = test</code>.</p>
+
+<p>Hence, an expression is represented by a function that, for any type T, 
+applies a Visitor[T] to itself and thereby produces a T.</p>
+
+<p>The &ldquo;for any type T&rdquo; from the previous sentence means that ordinary Scala 
+functions cannot be used for this purpose, because all type parameters of 
+Scala functions have to be known before a function can be passed as an 
+argument. Rather, we encode it as an abstract class with an <code>apply</code> function 
+that takes the type parameter.</p>
+
+<p>Later in the course, or if you are a Haskell affectionado, you may recognize 
+that this is an encoding of the type <code>forall T.Visitor[T] =&gt; T</code>, which means 
+that functions accepting or returning ExpC values have so-called 
+&ldquo;rank-2 types&rdquo;.</p>
+
+<p>We call this method &ldquo;apply&rdquo; because then we can use function application 
+syntax:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">abstract</span> <span class="k">class</span> <span class="nc">ExpC</span> <span class="o">{</span> <span class="k">def</span> <span class="n">apply</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">v</span><span class="k">:</span> <span class="kt">Visitor</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">:</span> <span class="kt">T</span> <span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-18'>
+      <div class="docs"><p>We use implicits for <code>num</code> and <code>id</code> again to make building expressions more 
+concise.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">implicit</span> <span class="k">def</span> <span class="n">num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">:</span> <span class="kt">ExpC</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">ExpC</span> <span class="o">{</span> 
+  <span class="k">def</span> <span class="n">apply</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">v</span><span class="k">:</span> <span class="kt">Visitor</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">=</span> <span class="n">v</span><span class="o">.</span><span class="n">num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+<span class="o">}</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">id</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">:</span> <span class="kt">ExpC</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">ExpC</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">apply</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">v</span><span class="k">:</span> <span class="kt">Visitor</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">=</span> <span class="n">v</span><span class="o">.</span><span class="n">id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+<span class="o">}</span>
+
+<span class="c1">// Note the indirect recursion here!</span>
+<span class="k">def</span> <span class="n">add</span><span class="o">(</span><span class="n">l</span><span class="k">:</span> <span class="kt">ExpC</span><span class="o">,</span> <span class="n">r</span><span class="k">:</span><span class="kt">ExpC</span><span class="o">)</span> <span class="k">:</span> <span class="kt">ExpC</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">ExpC</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">apply</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">v</span><span class="k">:</span> <span class="kt">Visitor</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">=</span> <span class="n">v</span><span class="o">.</span><span class="n">add</span><span class="o">(</span><span class="n">l</span><span class="o">(</span><span class="n">v</span><span class="o">),</span> <span class="n">r</span><span class="o">(</span><span class="n">v</span><span class="o">))</span>
+<span class="o">}</span>
+<span class="k">def</span> <span class="n">mul</span><span class="o">(</span><span class="n">l</span><span class="k">:</span> <span class="kt">ExpC</span><span class="o">,</span> <span class="n">r</span><span class="k">:</span><span class="kt">ExpC</span><span class="o">)</span> <span class="k">:</span> <span class="kt">ExpC</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">ExpC</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">apply</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">v</span><span class="k">:</span> <span class="kt">Visitor</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">=</span> <span class="n">v</span><span class="o">.</span><span class="n">mul</span><span class="o">(</span><span class="n">l</span><span class="o">(</span><span class="n">v</span><span class="o">),</span> <span class="n">r</span><span class="o">(</span><span class="n">v</span><span class="o">))</span> 
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-19'>
+      <div class="docs"><p>We can again reconstruct the original eval interface. Note that the Visitor 
+is <em>applied</em> to the expression.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">eval3</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">ExpC</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">e</span><span class="o">(</span><span class="n">evalVisitor</span><span class="o">)(</span><span class="n">env</span><span class="o">)</span>
+     
+<span class="c1">//  Example test from above rewritten into Church encoding:</span>
+<span class="k">val</span> <span class="n">test2</span> <span class="k">:</span> <span class="kt">ExpC</span> <span class="o">=</span> <span class="n">add</span><span class="o">(</span><span class="n">mul</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="mi">2</span><span class="o">),</span> <span class="n">add</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span><span class="-Symbol">&#39;y</span><span class="o">))</span>
+
+<span class="n">assert</span><span class="o">(</span><span class="n">eval3</span><span class="o">(</span><span class="n">test2</span><span class="o">,</span> <span class="n">testEnv</span><span class="o">)</span> <span class="o">==</span> <span class="mi">14</span><span class="o">)</span>
+
+<span class="n">assert</span><span class="o">(</span><span class="n">test2</span><span class="o">(</span><span class="n">countVisitor</span><span class="o">)</span> <span class="o">==</span> <span class="mi">1</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-Further_reading'>
+      <div class="docs"><p>As a voluntary but useful exercise, we recommend to start with a blank source
+file and reconstruct the definitions in this file from memory (or rather,
+derive them from your understanding of the subject matter).</p>
+
+<h2> Further reading</h2>
+
+<ul>
+<li>about the basics of interpreter design: PLAI Section 1+2</li>
+<li>about internal visitors in Scala see 
+Bruno C. d. S. Oliveira, Meng Wang, Jeremy Gibbons: 
+The visitor pattern as a reusable, generic, type-safe component. 
+OOPSLA 2008: 439-456
+online at http://www.cs.ox.ac.uk/jeremy.gibbons/publications/visitor.pdf</li>
+</ul>
+</div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+  </article>
+</body>

@@ -12,6 +12,6 @@ University of Marburg loosely based on the book
 
 Chapters
 --------
-- [Arithmetic Expressions](2-ae.html)
-- [Introducing Name Bindings](3-wae.html)
-- [First Order Functions](4-f1wae.html)
+- [Arithmetic Expressions](notes/2-ae.html)
+- [Introducing Name Bindings](notes/3-wae.html)
+- [First Order Functions](notes/4-f1wae.html)

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>9-bcfae.scala</title>
+  <link rel="stylesheet" href="../recources/style.css">
+</head>
+<body>
+  <header>
+  <nav>
+    <ul>    
+        <li><a href="10-gc.html">10-gc.scala</a></li>
+        <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="3-wae.html">3-wae.scala</a></li>
+        <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
+        <li><a href="5-fae.html">5-fae.scala</a></li>
+        <li><a href="6-lcfae.html">6-lcfae.scala</a></li>
+        <li><a href="8-rcfae.html">8-rcfae.scala</a></li>
+        <li><a href="9-bcfae.html">9-bcfae.scala</a></li>
+    </ul>
+  </nav>
+  </header>
+  <article id="documentation">
+    <section id='section-1'>
+      <div class="docs"><p>These are lecture notes for the &ldquo;Programming Languages and Types&rdquo;
+course by Klaus Ostermann at the University of Marburg</p>
+
+<p>loosely based on Sec. 13 of &ldquo;Programming Languages: Application and
+Interpretation&rdquo; by Shriram Krishnamurthi</p>
+
+<p>Please comment/correct/improve these notes via github. Proposals or
+questions can be submitted as an &ldquo;issue&rdquo;; proposals for
+corrections/extensions/improvements can be submitted as a &ldquo;pull
+request&rdquo;. You can of course also send an email to Klaus Ostermann</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-2'>
+      <div class="docs"><p>Today we study <em>mutation</em>. More specifically, we want to equip our
+language with mutable data structures.  Typical mutable data
+structures in common languages include objects with mutable fields
+or structures/records in languages like C or Pascal.</p>
+
+<p>We will study a particularly simple mutable data structure: Boxes.
+In OO parlance, boxes can be thought of as an object with a single
+field that can be mutated. Despite their simplicity, boxes already
+illustrate all main issues associated with adding mutable state to
+a language.</p>
+
+<p>A different and less interesting form of mutation is the mutability
+of <em>variables</em>, such as the possibility to assign something to a
+&lsquo;local&rsquo; variable bound via a lambda or &ldquo;with&rdquo;. We will not talk
+about mutable variables today.</p>
+
+<p>We will add boxes to our base language, FAE.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">If0</span><span class="o">(</span><span class="n">cond</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">thenExp</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">elseExp</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">num2exp</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">id2exp</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Id</span><span class="o">(</span><span class="n">s</span><span class="o">)</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">App</span> <span class="o">(</span><span class="n">funExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">argExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">def</span> <span class="n">wth</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">xdef</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">),</span><span class="n">xdef</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-3'>
+      <div class="docs"><p>To add mutation to FAE, we add four language constructs:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">case</span> <span class="k">class</span> <span class="nc">NewBox</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span> <span class="c1">// create a new box</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">SetBox</span><span class="o">(</span><span class="n">b</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span> <span class="c1">// assign to a box</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">OpenBox</span><span class="o">(</span><span class="n">b</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span> <span class="c1">// read value in a box</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Seq</span><span class="o">(</span><span class="n">e1</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">e2</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span> <span class="c1">// sequencing of expressions</span></pre></code></div>
+    </section>
+    <section id='section-4'>
+      <div class="docs"><p>In this new language, the following sample program</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test1</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;b</span><span class="o">,</span> <span class="nc">NewBox</span><span class="o">(</span><span class="mi">0</span><span class="o">),</span> 
+              <span class="nc">Seq</span><span class="o">(</span>
+                <span class="nc">SetBox</span><span class="o">(</span><span class="-Symbol">&#39;b</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="nc">OpenBox</span><span class="o">(</span><span class="-Symbol">&#39;b</span><span class="o">))),</span> 
+                <span class="nc">OpenBox</span><span class="o">(</span><span class="-Symbol">&#39;b</span><span class="o">)))</span></pre></code></div>
+    </section>
+    <section id='section-5'>
+      <div class="docs"><p>should give as result 1 in a proper implementation.</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-6'>
+      <div class="docs"><p>Let&rsquo;s consider how our interpreter could handle sequencing.</p>
+
+<p>Here is an attempt:</p>
+
+<pre><code> case Seq(e1, e2) =&gt; {
+   eval(e1, env)
+   eval(e2, env)
+ }
+</code></pre>
+
+<p>This cannot be correct. As long as our interpreter does not use mutation,
+evaluation could not make any changes to the environment, hence there is
+no way the evaluation of e1 could have any effect on the evaluation of e2.</p>
+
+<p>In order to demostrate the actual nature of mutation, we will not use
+mutation in our meta-language to implement mutation in our object language.
+That said, we will not use a mutable data structure to implement environment
+in our interpreter.</p>
+
+<p>Instead, one may turn to the so-called environment-passing style, in which
+the interpreter returns also a possibly updated environment together with the
+computed value when it evaluates an expression.  However, this solution does
+not always work.  Consider the following example:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test2</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">,</span> <span class="nc">NewBox</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span>
+              <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">OpenBox</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">))),</span>
+                <span class="nc">Seq</span><span class="o">(</span><span class="nc">SetBox</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">,</span><span class="mi">2</span><span class="o">),</span>
+                  <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span> <span class="mi">5</span><span class="o">))))</span></pre></code></div>
+    </section>
+    <section id='section-7'>
+      <div class="docs"><p>The mutation should affect the box stored in the closure bound to
+f.  But with the implementation strategy described above it would
+not.</p>
+
+<p>Note that changing the value of a in the example is not a vialation
+of static scope.  Scoping only says where an identifier is bound;
+it does not say to what an identifier is bound, in particular, whether
+whatever bound to the identifier is fixed.  Indeed, the variable a is
+bound to the same box in both the static environment where the function
+f is created and the dynamic environment where the function f is applied.</p>
+
+<p>As before, when applying the function f to the argument 5, we can choose
+either</p>
+
+<p>1) To use the static environment (where the variable a is bound to a
+   boxed 1) stored in the closure created for f.</p>
+
+<p>2) Or to use the dynamic environment (where the variable a is bound to a
+   boxed 2) present at the time of applying f.</p>
+
+<p>The first choice leads the program to evaluate to 6 rather than the
+expected 7.  The second will record the change to the box, but it
+reintroduces dynamic scoping.  So both choices do not work.</p>
+
+<p>Insight: We need <em>two</em> repositories of information.</p>
+
+<p>One, the environment, guards static scope.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Value</span>
+<span class="k">type</span> <span class="kt">Env</span> <span class="o">=</span> <span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>, <span class="kt">Value</span><span class="o">]</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Fun</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span></pre></code></div>
+    </section>
+    <section id='section-8'>
+      <div class="docs"><p>The other, which we call <em>store</em>, is trackis dynamic changes.</p>
+
+<p>Determining the value inside a box will become a two-step process:
+We first evaluate the box expression to an <em>address</em>, and then use
+the store to lookup the value stored at that address. We choose to
+represent addresses by integers.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">type</span> <span class="kt">Address</span> <span class="o">=</span> <span class="nc">Int</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">AddressV</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">Address</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+
+<span class="k">type</span> <span class="kt">Store</span> <span class="o">=</span> <span class="nc">Map</span><span class="o">[</span><span class="kt">Address</span>, <span class="kt">Value</span><span class="o">]</span></pre></code></div>
+    </section>
+    <section id='section-9'>
+      <div class="docs"><p>We will often need a fresh address in the store. We do so using a
+counter variable.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">var</span> <span class="nc">_nextAddress</span> <span class="k">=</span> <span class="mi">0</span>
+
+<span class="k">def</span> <span class="n">nextAddress</span> <span class="k">:</span> <span class="kt">Address</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="nc">_nextAddress</span> <span class="o">+=</span> <span class="mi">1</span>
+  <span class="nc">_nextAddress</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-10'>
+      <div class="docs"><p>Note: We promised to implement the interpreter without using
+mutation. Here we did use mutation, but this musage of mutation is
+not essential: we could instead just search for the largest address
+in the present store and add one to it.</p>
+
+<p>Let&rsquo;s now discuss the evaluation of FAE with conditionals and
+boxes, BCFAE. To this end, consider the following sample program:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test3</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;switch</span><span class="o">,</span> <span class="nc">NewBox</span><span class="o">(</span><span class="mi">0</span><span class="o">),</span>
+             <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;toggle</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;dummy</span><span class="o">,</span> <span class="nc">If0</span><span class="o">(</span><span class="nc">OpenBox</span><span class="o">(</span><span class="-Symbol">&#39;switch</span><span class="o">),</span>
+                                          <span class="nc">Seq</span><span class="o">(</span><span class="nc">SetBox</span><span class="o">(</span><span class="-Symbol">&#39;switch</span><span class="o">,</span> <span class="mi">1</span><span class="o">),</span> <span class="mi">1</span><span class="o">),</span>
+                                          <span class="nc">Seq</span><span class="o">(</span><span class="nc">SetBox</span><span class="o">(</span><span class="-Symbol">&#39;switch</span><span class="o">,</span> <span class="mi">0</span><span class="o">),</span> <span class="mi">0</span><span class="o">))),</span>
+                 <span class="nc">Add</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;toggle</span><span class="o">,</span><span class="mi">42</span><span class="o">),</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;toggle</span><span class="o">,</span><span class="mi">42</span><span class="o">))))</span></pre></code></div>
+    </section>
+    <section id='section-11'>
+      <div class="docs"><p>This program should return 1.
+Let&rsquo;s discuss on the blackboard what the environment and store
+should look like during the evaluation of this program.</p>
+
+<p>ID      Exp                     Value   Env             Store
+A       wth(..                          &lsquo;switch &ndash;&gt; ..   1 &ndash;&gt; NumV(0)
+B        wth(..                         'toggle &ndash;&gt; ..
+C         Add(..
+D          App('toggle)         1                       1 &ndash;&gt; NumV(1)
+E          App('toggle)         0                       1 &ndash;&gt; NumV(0)
+F         Add(0,1)              1</p>
+
+<p>Insight:</p>
+
+<p>We must pass the current store in to evaluate every expression and pass
+the possibly updated store out after the evaluation.  This is called
+store-passing style.  Consequently, we have to update the type of our
+evaluator.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">s</span><span class="k">:</span> <span class="kt">Store</span><span class="o">)</span> <span class="k">:</span> <span class="o">(</span><span class="kt">Value</span><span class="o">,</span> <span class="kt">Store</span><span class="o">)</span> <span class="k">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span></pre></code></div>
+    </section>
+    <section id='section-12'>
+      <div class="docs"><p>All expressions whose evaluation does not alter the store just
+return s.</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="o">),</span> <span class="n">s</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">),</span> <span class="n">s</span><span class="o">)</span>
+  <span class="k">case</span> <span class="n">f</span><span class="nd">@Fun</span><span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">),</span> <span class="n">s</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-13'>
+      <div class="docs"><p>In recursive cases we have to thread the store through the
+evaluation. In particular, we define the order of evaluation
+explicitly through data flow dependencies.</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">case</span> <span class="nc">If0</span><span class="o">(</span><span class="n">cond</span><span class="o">,</span> <span class="n">thenExp</span><span class="o">,</span> <span class="n">elseExp</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">cond</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="mi">0</span><span class="o">),</span> <span class="n">s1</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">thenExp</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s1</span><span class="o">)</span>
+         <span class="k">case</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="n">s1</span><span class="o">)</span>       <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">elseExp</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s1</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-14'>
+      <div class="docs"><p>An alternative that enfoces runtime type-correctness of
+the conditional expression:</p>
+
+<pre><code>     case (NumV(_), s1) =&gt; eval(elseExp, env, s1)
+     case _             =&gt; sys.error(&ldquo;can only test if a number is 0&rdquo;)
+</code></pre></div>
+      <div class="code"><code class='highlight'><pre>       <span class="o">}</span>
+
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">r</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span> <span class="n">s1</span><span class="o">)</span>
+           <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s1</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+                <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">),</span> <span class="n">s2</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span> <span class="o">+</span> <span class="n">v2</span><span class="o">),</span> <span class="n">s2</span><span class="o">)</span>
+                <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+              <span class="o">}</span>
+         <span class="k">case</span> <span class="k">_</span>
+           <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+       <span class="o">}</span>
+
+  <span class="k">case</span> <span class="nc">Mul</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">r</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span> <span class="n">s1</span><span class="o">)</span>
+           <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s1</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+                <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">),</span> <span class="n">s2</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span> <span class="o">*</span> <span class="n">v2</span><span class="o">),</span> <span class="n">s2</span><span class="o">)</span>
+                <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only multiply numbers&quot;</span><span class="o">)</span>
+              <span class="o">}</span>
+         <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only multiply numbers&quot;</span><span class="o">)</span>
+       <span class="o">}</span>
+
+  <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">a</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="o">(</span><span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">closureEnv</span><span class="o">),</span> <span class="n">s1</span><span class="o">)</span>
+           <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s1</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+                <span class="k">case</span> <span class="o">(</span><span class="n">av</span><span class="o">,</span> <span class="n">s2</span><span class="o">)</span>
+                  <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">body</span><span class="o">,</span> <span class="n">closureEnv</span> <span class="o">+</span> <span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">param</span> <span class="o">-&gt;</span> <span class="n">av</span><span class="o">),</span> <span class="n">s2</span><span class="o">)</span>
+              <span class="o">}</span>
+         <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+       <span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-15'>
+      <div class="docs"><p>In a sequence, we ignore the result of evaluating e1 but not its
+effect on the store.</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">case</span> <span class="nc">Seq</span><span class="o">(</span><span class="n">e1</span><span class="o">,</span> <span class="n">e2</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">e2</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">eval</span><span class="o">(</span><span class="n">e1</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s</span><span class="o">).</span><span class="n">_2</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-16'>
+      <div class="docs"><p>A new box is created by putting it into the store at a new
+address.</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">case</span> <span class="nc">NewBox</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="o">(</span><span class="n">v</span><span class="o">,</span> <span class="n">s1</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+           <span class="k">val</span> <span class="n">a</span> <span class="k">=</span> <span class="n">nextAddress</span>
+           <span class="o">(</span><span class="nc">AddressV</span><span class="o">(</span><span class="n">a</span><span class="o">),</span> <span class="n">s1</span> <span class="o">+</span> <span class="o">(</span><span class="n">a</span> <span class="o">-&gt;</span> <span class="n">v</span><span class="o">))</span>
+         <span class="o">}</span>
+       <span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-17'>
+      <div class="docs"><p>Setting a box is now a two-step process: First evaluate b to an
+address, then lookup and update the value associated to the
+address in the store. Note that &ldquo;updated&rdquo; is a functional method.</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">case</span> <span class="nc">SetBox</span><span class="o">(</span><span class="n">b</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">b</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="o">(</span><span class="nc">AddressV</span><span class="o">(</span><span class="n">a</span><span class="o">),</span> <span class="n">s1</span><span class="o">)</span>
+           <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s1</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+                <span class="k">case</span> <span class="o">(</span><span class="n">ev</span><span class="o">,</span> <span class="n">s2</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">ev</span><span class="o">,</span> <span class="n">s2</span><span class="o">.</span><span class="n">updated</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">ev</span><span class="o">))</span>
+              <span class="o">}</span>
+         <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only set boxes&quot;</span><span class="o">)</span>
+       <span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-18'>
+      <div class="docs"><p>OpenBox uses the same two-step process but does not update the
+store.</p></div>
+      <div class="code"><code class='highlight'><pre>  <span class="k">case</span> <span class="nc">OpenBox</span><span class="o">(</span><span class="n">b</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span>
+    <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">b</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="o">(</span><span class="nc">AddressV</span><span class="o">(</span><span class="n">a</span><span class="o">),</span> <span class="n">s1</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">s1</span><span class="o">(</span><span class="n">a</span><span class="o">),</span> <span class="n">s1</span><span class="o">)</span>
+         <span class="k">case</span> <span class="k">_</span>                 <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only open boxes&quot;</span><span class="o">)</span>
+       <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-19'>
+      <div class="docs"><p>From an implementation point of view, our interpreter has the
+problem that nothing is ever removed from the store. One
+possibility would be to add an operation &ldquo;removeBox&rdquo; or the like to
+the language, but this would lead to dangling pointers and all the
+problems associated with manual memory management.</p>
+
+<p>Our model of stores is sufficient to illustrate how modern
+languages deal with memory management: by garbage collection.
+Garbage collectors automatically reclaim memory that is no longer
+referenced from within the active part of the computation. We can
+model a (naive) mark-and-sweep garbage collector as follows:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">gc</span><span class="o">(</span><span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">store</span><span class="k">:</span><span class="kt">Store</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Store</span> <span class="o">=</span> <span class="o">{</span>
+
+  <span class="k">def</span> <span class="n">allAddrInVal</span><span class="o">(</span><span class="n">v</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Address</span><span class="o">]</span> <span class="k">=</span> <span class="n">v</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">AddressV</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>      <span class="k">=&gt;</span> <span class="nc">Set</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+    <span class="k">case</span> <span class="nc">NumV</span><span class="o">(</span><span class="k">_</span><span class="o">)</span>          <span class="k">=&gt;</span> <span class="nc">Set</span><span class="o">.</span><span class="n">empty</span>
+    <span class="k">case</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">allAddrInEnv</span><span class="o">(</span><span class="n">env</span><span class="o">)</span>
+  <span class="o">}</span>
+
+  <span class="k">def</span> <span class="n">allAddrInEnv</span><span class="o">(</span><span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Address</span><span class="o">]</span> <span class="k">=</span>
+    <span class="n">env</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="n">allAddrInVal</span> <span class="k">_</span><span class="o">).</span><span class="n">fold</span><span class="o">(</span><span class="nc">Set</span><span class="o">.</span><span class="n">empty</span><span class="o">)(</span><span class="k">_</span> <span class="n">union</span> <span class="k">_</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="n">mark</span><span class="o">(</span><span class="n">seed</span><span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Address</span><span class="o">])</span> <span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Address</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+    <span class="k">val</span> <span class="n">newAddresses</span> <span class="k">=</span> <span class="n">seed</span><span class="o">.</span><span class="n">flatMap</span><span class="o">(</span><span class="n">ad</span> <span class="k">=&gt;</span> <span class="n">allAddrInVal</span><span class="o">(</span><span class="n">store</span><span class="o">(</span><span class="n">ad</span><span class="o">)))</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">newAddresses</span><span class="o">.</span><span class="n">subsetOf</span><span class="o">(</span><span class="n">seed</span><span class="o">))</span> <span class="n">seed</span>
+    <span class="k">else</span> <span class="n">mark</span><span class="o">(</span><span class="n">seed</span> <span class="n">union</span> <span class="n">newAddresses</span><span class="o">)</span>
+  <span class="o">}</span>
+
+  <span class="k">val</span> <span class="n">marked</span> <span class="k">=</span> <span class="n">mark</span><span class="o">(</span><span class="n">allAddrInEnv</span><span class="o">(</span><span class="n">env</span><span class="o">))</span> <span class="c1">// mark ...</span>
+  <span class="n">store</span><span class="o">.</span><span class="n">filterKeys</span><span class="o">(</span><span class="n">marked</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>           <span class="c1">// and sweep!</span>
+<span class="o">}</span>
+
+<span class="k">val</span> <span class="n">teststore</span> <span class="k">=</span> <span class="nc">Map</span><span class="o">(</span>
+  <span class="mi">6</span>  <span class="o">-&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="mi">42</span><span class="o">),</span>
+  <span class="mi">7</span>  <span class="o">-&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="mi">6</span><span class="o">),</span>
+  <span class="mi">8</span>  <span class="o">-&gt;</span> <span class="nc">AddressV</span><span class="o">(</span><span class="mi">6</span><span class="o">),</span>
+  <span class="mi">9</span>  <span class="o">-&gt;</span> <span class="nc">AddressV</span><span class="o">(</span><span class="mi">7</span><span class="o">),</span>
+  <span class="mi">10</span> <span class="o">-&gt;</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="-Symbol">&#39;y</span><span class="o">),</span> <span class="nc">Map</span><span class="o">(</span><span class="-Symbol">&#39;y</span> <span class="o">-&gt;</span> <span class="nc">AddressV</span><span class="o">(</span><span class="mi">8</span><span class="o">)))</span>
+<span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-20'>
+      <div class="docs"><p>10 &ndash;&gt; 8 &ndash;&gt; 6</p>
+
+<pre><code>  9 &ndash;&gt; 7
+</code></pre></div>
+      <div class="code"><code class='highlight'><pre><span class="n">assert</span><span class="o">(</span><span class="n">gc</span><span class="o">(</span><span class="nc">Map</span><span class="o">(</span><span class="-Symbol">&#39;a</span> <span class="o">-&gt;</span> <span class="nc">AddressV</span><span class="o">(</span><span class="mi">10</span><span class="o">)),</span> <span class="n">teststore</span><span class="o">)</span> <span class="o">==</span> <span class="n">teststore</span> <span class="o">-</span> <span class="mi">7</span> <span class="o">-</span> <span class="mi">9</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-21'>
+      <div class="docs"><p>Note that garbage collectors only <em>approximate</em> the set of
+semantically disposable store entities. Even with garbage
+collectors, applications may very well suffer from memory leaks.
+The approximation should be <em>safe</em>, in the sense that a datum is
+never reclaimed when it is used by subsequent computations.
+Furthermore, it must reclaim enough garbage to be actually useful
+&mdash;-reachability has turned out to be a rather useful (and sound)
+approximation of semantic disposability. Garbage collectors must
+also be efficient. Efficiency of GC is a huge research topic that
+we are not going to discuss. One efficiency problem with garbage
+collectors based on reachability that we want to mention is the
+&ldquo;stop-the-world&rdquo; phenomenon.</p>
+
+<p>http://en.wikipedia.org/wiki/Garbage<em>collection</em>(computer_science)</p>
+</div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+  </article>
+</body>

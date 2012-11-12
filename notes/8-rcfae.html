@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>8-rcfae.scala</title>
+  <link rel="stylesheet" href="../recources/style.css">
+</head>
+<body>
+  <header>
+  <nav>
+    <ul>    
+        <li><a href="10-gc.html">10-gc.scala</a></li>
+        <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="3-wae.html">3-wae.scala</a></li>
+        <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
+        <li><a href="5-fae.html">5-fae.scala</a></li>
+        <li><a href="6-lcfae.html">6-lcfae.scala</a></li>
+        <li><a href="8-rcfae.html">8-rcfae.scala</a></li>
+        <li><a href="9-bcfae.html">9-bcfae.scala</a></li>
+    </ul>
+  </nav>
+  </header>
+  <article id="documentation">
+    <section id='section-1'>
+      <div class="docs"><p>These are lecture notes for the &ldquo;Programming Languages and Types&rdquo; course by Klaus Ostermann 
+at the University of Marburg</p>
+
+<p>loosely based on Sec. 9+10 of &ldquo;Programming Languages: Application and Interpretation&rdquo; by
+Shriram Krishnamurthi</p>
+
+<p>Please comment/correct/improve these notes via github. Proposals or questions can
+be submitted as an &ldquo;issue&rdquo;; proposals for corrections/extensions/improvements can
+be submitted as a &ldquo;pull request&rdquo;. You can of course also send an email to Klaus Ostermann</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-Recursion'>
+      <div class="docs"><h1></h1>
+
+<h1>Recursion</h1>
+
+<p>Let&rsquo;s try to write a function that computes the sum of the first n integers.
+Let&rsquo;s pretend we do not know that the sum of the first n integers is n*(n+1)/2
+and instead compute the sum in a loop. Let&rsquo;s try to do this in FAE (with if0):</p></div>
+      <div class="code"><code class='highlight'><pre> 
+<span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">If0</span><span class="o">(</span><span class="n">cond</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">thenExp</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">elseExp</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">num2exp</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">id2exp</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Id</span><span class="o">(</span><span class="n">s</span><span class="o">)</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">App</span> <span class="o">(</span><span class="n">funExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">argExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">def</span> <span class="n">wth</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">xdef</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">),</span><span class="n">xdef</span><span class="o">)</span>
+
+<span class="k">val</span> <span class="n">sumattempt</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;sum</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;n</span><span class="o">,</span> <span class="nc">If0</span><span class="o">(</span><span class="-Symbol">&#39;n</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;n</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;sum</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;n</span><span class="o">,-</span><span class="mi">1</span><span class="o">))))),</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;sum</span><span class="o">,</span> <span class="mi">10</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-3'>
+      <div class="docs"><p>However, sumattempt won&rsquo;t work and yield an unbound identifier error (why?).
+An alternative would be to use a variant of the y combinator to support recursion
+properly, but today we want to talk about direct support for recursion.
+More specifically, we want a language construct &ldquo;letrec&rdquo; that is similar to &ldquo;with&rdquo;, 
+except that the bound symbol can be used in the expression the symbol is bound to:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">case</span> <span class="k">class</span> <span class="nc">Letrec</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span></pre></code></div>
+    </section>
+    <section id='section-4'>
+      <div class="docs"><p>Using letrec, our example can be expressed as follows.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">sum</span> <span class="k">=</span> <span class="nc">Letrec</span><span class="o">(</span><span class="-Symbol">&#39;sum</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;n</span><span class="o">,</span> <span class="nc">If0</span><span class="o">(</span><span class="-Symbol">&#39;n</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;n</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;sum</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;n</span><span class="o">,-</span><span class="mi">1</span><span class="o">))))),</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;sum</span><span class="o">,</span> <span class="mi">10</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-5'>
+      <div class="docs"><p>Let&rsquo;s now consider the semantics of letrec. Consider the evaluation of
+Letrec(x,e,body) in an environment env.</p>
+
+<p>What environment should we use to evaluate e and body, respectively?
+Using env for e will produce a ClosureV(Fun(&lsquo;n,&hellip;'sum&rsquo;&hellip;),env), and hence
+the environment when evaluating body will be
+envbody = env + (x &ndash;&gt; ClosureV(Fun(&lsquo;n,&hellip;'sum&hellip;),env))
+This is bad, because the env in the closure does not contain a binding for sum and hence the
+recursive invocation will fail. The environment in the closure must contain
+a mapping for 'sum. Hence envbody should look like
+envbody = env + (x &ndash;&gt; ClosureV(Fun('n, &hellip;'sum&hellip;), 
+                               env+('sum &ndash;&gt; ClosureV(Fun('n,&hellip;'sum&hellip;),env)))</p>
+
+<p>This looks better, but now the second closure contains an environment with no
+binding of 'sum. What we need is an environment that satisfies the equation:</p>
+
+<p>envbody = env + (x &ndash;&gt; ClosureV(Fun('n, &hellip;'sum..), envbody))</p>
+
+<p>Obviously envbody must be circular. There are different ways to create such a circular
+environment. We will choose mutation to create a circle. More specifically, we use
+a mutable Map (initialized to env) as environment when evaluating e and then mutate
+the environment to include a mapping from x to the evaluated closure.</p>
+
+<p>To be able to use both mutable and immutable maps as environments, we define: </p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-6'>
+      <div class="docs"><p>No changes to the values in our language.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Value</span>
+
+<span class="k">type</span> <span class="kt">Env</span> <span class="o">=</span> <span class="n">scala</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>, <span class="kt">Value</span><span class="o">]</span> <span class="c1">// just &quot;Map&quot; defaults to scala.collection.immutable.Map</span>
+
+<span class="k">case</span> <span class="k">class</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Fun</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span></pre></code></div>
+    </section>
+    <section id='section-7'>
+      <div class="docs"><p>The interpreter is unchanged except for the additional Letrec case.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Value</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">If0</span><span class="o">(</span><span class="n">cond</span><span class="o">,</span> <span class="n">thenExp</span><span class="o">,</span> <span class="n">elseExp</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">cond</span><span class="o">,</span><span class="n">env</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">NumV</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">thenExp</span><span class="o">,</span><span class="n">env</span><span class="o">)</span>
+    <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">elseExp</span><span class="o">,</span><span class="n">env</span><span class="o">)</span>
+  <span class="o">}</span>    
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+    <span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">env</span><span class="o">),</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">env</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">+</span><span class="n">v2</span><span class="o">)</span>
+      <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+  <span class="k">case</span> <span class="n">f</span><span class="nd">@Fun</span><span class="o">(</span><span class="n">param</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">env</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">closureEnv</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">body</span><span class="o">,</span> <span class="n">closureEnv</span> <span class="o">+</span> <span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">param</span> <span class="o">-&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">,</span><span class="n">env</span><span class="o">)))</span>
+    <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+  <span class="o">}</span>
+  <span class="k">case</span> <span class="nc">Letrec</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">e</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+    <span class="k">val</span> <span class="n">mutableenv</span> <span class="k">=</span>  <span class="n">scala</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">mutable</span><span class="o">.</span><span class="nc">Map</span><span class="o">()</span> <span class="o">++</span> <span class="n">env</span> <span class="c1">// create mutable map, initialize it to env</span>
+    <span class="n">mutableenv</span> <span class="o">+=</span> <span class="n">x</span> <span class="o">-&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">mutableenv</span><span class="o">)</span>  <span class="c1">// evaluate e and then create circle in the environment</span>
+    <span class="n">eval</span><span class="o">(</span><span class="n">body</span><span class="o">,</span><span class="n">mutableenv</span><span class="o">)</span> <span class="c1">// evaluate body in circular environment</span>
+  <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-8'>
+      <div class="docs"><p>The sum of numbers from 1 to 10 should be 55.</p>
+</div>
+      <div class="code"><code class='highlight'><pre><span class="n">assert</span><span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">sum</span><span class="o">,</span> <span class="nc">Map</span><span class="o">.</span><span class="n">empty</span><span class="o">)</span> <span class="o">==</span> <span class="nc">NumV</span><span class="o">(</span><span class="mi">55</span><span class="o">))</span></pre></code></div>
+    </section>
+  </article>
+</body>

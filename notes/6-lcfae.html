@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>6-lcfae.scala</title>
+  <link rel="stylesheet" href="../recources/style.css">
+</head>
+<body>
+  <header>
+  <nav>
+    <ul>    
+        <li><a href="10-gc.html">10-gc.scala</a></li>
+        <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="3-wae.html">3-wae.scala</a></li>
+        <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
+        <li><a href="5-fae.html">5-fae.scala</a></li>
+        <li><a href="6-lcfae.html">6-lcfae.scala</a></li>
+        <li><a href="8-rcfae.html">8-rcfae.scala</a></li>
+        <li><a href="9-bcfae.html">9-bcfae.scala</a></li>
+    </ul>
+  </nav>
+  </header>
+  <article id="documentation">
+    <section id='section-1'>
+      <div class="docs"><p>These are lecture notes for the &ldquo;Programming Languages and Types&rdquo; course by Klaus Ostermann 
+at the University of Marburg</p>
+
+<p>loosely based on Sec. 6 of &ldquo;Programming Languages: Application and Interpretation&rdquo; by
+Shriram Krishnamurthi</p>
+
+<p>Please comment/correct/improve these notes via github. Proposals or questions can
+be submitted as an &ldquo;issue&rdquo;; proposals for corrections/extensions/improvements can
+be submitted as a &ldquo;pull request&rdquo;. You can of course also send an email to Klaus Ostermann</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-Lazy_Evaluation'>
+      <div class="docs"><h1>Lazy Evaluation</h1>
+
+<h2>Motivation for Lazy Evaluation</h2>
+
+<p>read Chap. 7 of PLAI and get acquainted with basic Haskell
+(install GHC from www.haskell.org and browse through one of the tutorials)</p>
+
+<p>read &ldquo;Why Functional Programming Matters&rdquo; by John Hughes
+available at http://www.cse.chalmers.se/~rjmh/Papers/whyfp.html</p>
+
+<h2>What lazy evaluation means</h2>
+
+<p>The choice of evaluation strategy is a purely semantic change that requires
+no change to the syntax.
+For this reason we reuse the syntactic definitions of FAE, hence
+:load 5-fae.scala
+before executing this script or uncomment the previous line.</p>
+
+<p>Before we discuss lazy evaluation, we will first discuss a a
+related evaluation strategy, call-by-name.</p>
+
+<p>Call-by-name can be explained very succintly in the substitution-based
+interpreter: Instead of evaluating the argument &ldquo;a&rdquo; in the &ldquo;App&rdquo; case
+before substitution, we substitute the unevaluated argument into the body.
+The rest remains exactly the same.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">evalcbn</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;unbound identifier: &quot;</span><span class="o">+</span><span class="n">v</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">evalcbn</span><span class="o">(</span><span class="n">l</span><span class="o">),</span> <span class="n">evalcbn</span><span class="o">(</span><span class="n">r</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+                     <span class="k">case</span> <span class="o">(</span><span class="nc">Num</span><span class="o">(</span><span class="n">x</span><span class="o">),</span><span class="nc">Num</span><span class="o">(</span><span class="n">y</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">Num</span><span class="o">(</span><span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="o">)</span>
+                     <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+                    <span class="o">}</span>
+  <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalcbn</span><span class="o">(</span><span class="n">f</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+     <span class="k">case</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">evalcbn</span><span class="o">(</span> <span class="n">subst</span><span class="o">(</span><span class="n">body</span><span class="o">,</span><span class="n">x</span><span class="o">,</span> <span class="n">a</span><span class="o">))</span> <span class="c1">// no evaluation of a!</span>
+     <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+  <span class="o">}</span>
+  <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">e</span> 
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-3'>
+      <div class="docs"><p>Does this change the semantics, or is it just an implementation detail?
+In other words, is eval(e) == evalcbn(e) for all e ?
+Let&rsquo;s try two former test cases.</p></div>
+      <div class="code"><code class='highlight'><pre> 
+<span class="n">assert</span><span class="o">(</span> <span class="n">evalcbn</span><span class="o">(</span><span class="n">test</span><span class="o">)</span> <span class="o">==</span> <span class="n">eval</span><span class="o">(</span><span class="n">test</span><span class="o">))</span>
+<span class="n">assert</span><span class="o">(</span><span class="n">evalcbn</span><span class="o">(</span><span class="n">test2</span><span class="o">)</span> <span class="o">==</span> <span class="n">eval</span><span class="o">(</span><span class="n">test2</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-4'>
+      <div class="docs"><p>One can formally prove that if eval and evalcbn both produce a number 
+then the numbers are equal. Do they also agree if they produce a function?</p>
+
+<p>Not necessarily. Consider:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test3</span> <span class="k">=</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))),</span><span class="nc">Add</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span><span class="mi">2</span><span class="o">))</span> 
+
+<span class="n">assert</span><span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">test3</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="nc">App</span><span class="o">(</span><span class="nc">Num</span><span class="o">(</span><span class="mi">3</span><span class="o">),</span><span class="nc">Id</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">))))</span>
+<span class="n">assert</span><span class="o">(</span><span class="n">evalcbn</span><span class="o">(</span><span class="n">test3</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="nc">App</span><span class="o">(</span><span class="nc">Add</span><span class="o">(</span><span class="nc">Num</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span><span class="nc">Num</span><span class="o">(</span><span class="mi">2</span><span class="o">)),</span><span class="nc">Id</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">))))</span></pre></code></div>
+    </section>
+    <section id='section-5'>
+      <div class="docs"><p>However, if both produce a function, then the functions &ldquo;behave&rdquo; the same. 
+More specifically, the function bodies produced by evalcbn may be 
+&ldquo;more evaluated&rdquo; than those produced by eval. If we would evaluate within
+function bodies (also called evaluation &ldquo;under a lambda&rdquo;) &ndash; which our interpreters
+do not do &ndash; we could produce the expression returned from eval from the expression
+returned by evalcbn. This kind of equivalence is also called &ldquo;beta-equivalence&rdquo;.</p>
+
+<p>Most importantly, however, eval and evalcbn differ with regard to their termination
+behavior. We have seen that omega is a diverging expression. In eval, the term</p></div>
+      <div class="code"><code class='highlight'><pre> <span class="k">val</span> <span class="n">test4</span> <span class="k">=</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="mi">5</span><span class="o">),</span><span class="n">omega</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-6'>
+      <div class="docs"><p>is hence also diverging. In contrast:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="n">assert</span><span class="o">(</span><span class="n">evalcbn</span><span class="o">(</span><span class="n">test4</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Num</span><span class="o">(</span><span class="mi">5</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-Extra_material:_Infinite_lists_in_FAE_(not_relevant_for_exam)'>
+      <div class="docs"><h2>Extra material: Infinite lists in FAE (not relevant for exam) </h2>
+
+<p>Using our call-by-name interpreter, we can express the same kinds of programming
+patterns that we have tried in Haskell, such as infinite lists.</p>
+
+<p>We do not have direct support for lists, but luckily we already know
+how to Church-encode them (see also lab-01.scala). Church-encoding can also
+be done in FAE. Here is the one for lists:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">nil</span> <span class="k">=</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;c</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;e</span><span class="o">,</span> <span class="-Symbol">&#39;e</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">cons</span>  <span class="k">=</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;xs</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;c</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;e</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;c</span><span class="o">,</span> <span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;xs</span><span class="o">,</span> <span class="-Symbol">&#39;c</span><span class="o">),</span><span class="-Symbol">&#39;e</span><span class="o">))))))</span></pre></code></div>
+    </section>
+    <section id='section-8'>
+      <div class="docs"><p>For instance, the list 1,2,3 is encoded as:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">list123</span> <span class="k">=</span> <span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span><span class="mi">1</span><span class="o">),</span><span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span><span class="mi">2</span><span class="o">),</span><span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span><span class="mi">3</span><span class="o">),</span> <span class="-Symbol">&#39;nil</span><span class="o">)))</span></pre></code></div>
+    </section>
+    <section id='section-9'>
+      <div class="docs"><p>The map function on lists becomes :</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">maplist</span> <span class="k">=</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;l</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;l</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;xs</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">)),</span><span class="-Symbol">&#39;xs</span><span class="o">)))),</span> <span class="-Symbol">&#39;nil</span><span class="o">)))</span></pre></code></div>
+    </section>
+    <section id='section-10'>
+      <div class="docs"><p>For instance, we can map the successor function over the 1,2,3 list.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test5</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span><span class="n">cons</span><span class="o">,</span> 
+            <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;nil</span><span class="o">,</span> <span class="n">nil</span><span class="o">,</span> 
+            <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;maplist</span><span class="o">,</span> <span class="n">maplist</span><span class="o">,</span>
+            <span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;maplist</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="mi">1</span><span class="o">))),</span> <span class="n">list123</span><span class="o">))))</span></pre></code></div>
+    </section>
+    <section id='section-11'>
+      <div class="docs"><p>Since it is somewhat difficult to print out the resulting list in our primitive language
+we construct the result we expect explicitly.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test5res</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span><span class="n">cons</span><span class="o">,</span> 
+               <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;nil</span><span class="o">,</span> <span class="n">nil</span><span class="o">,</span> 
+                 <span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span><span class="mi">2</span><span class="o">),</span><span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span><span class="mi">3</span><span class="o">),</span><span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span><span class="mi">4</span><span class="o">),</span> <span class="-Symbol">&#39;nil</span><span class="o">)))))</span>
+<span class="n">assert</span><span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">test5</span><span class="o">)</span> <span class="o">==</span> <span class="n">eval</span><span class="o">(</span><span class="n">test5res</span><span class="o">))</span>     </pre></code></div>
+    </section>
+    <section id='section-12'>
+      <div class="docs"><p>Using evalcbn instead of eval the assertion does not hold (why?), but the results are beta-equivalent.</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-13'>
+      <div class="docs"><p>We can also construct infinite lists. To this end, we need some form of recursion. We choose 
+the standard fixed-point operator Y. This operator only works under call-by-name or other 
+so-called &ldquo;non-strict&rdquo; evaluation strategies.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">y</span> <span class="k">=</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))),</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">)))))</span></pre></code></div>
+    </section>
+    <section id='section-14'>
+      <div class="docs"><p>Using Y, we can construct infinite lists, such as the list of all natural numbers.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">allnats</span> <span class="k">=</span> <span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;nats</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;n</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span><span class="-Symbol">&#39;n</span><span class="o">),</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;nats</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;n</span><span class="o">,</span><span class="mi">1</span><span class="o">)))))),</span><span class="mi">1</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-15'>
+      <div class="docs"><p>We can also perform standard computations on infinite lists, such as mapping the successor function over it.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">list2toinfty</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;cons</span><span class="o">,</span><span class="n">cons</span><span class="o">,</span> 
+                   <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;nil</span><span class="o">,</span> <span class="n">nil</span><span class="o">,</span> 
+                   <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span> <span class="n">y</span><span class="o">,</span> 
+                   <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;maplist</span><span class="o">,</span> <span class="n">maplist</span><span class="o">,</span>
+                      <span class="nc">App</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;maplist</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="mi">1</span><span class="o">))),</span> <span class="n">allnats</span><span class="o">)))))</span></pre></code></div>
+    </section>
+    <section id='section-16'>
+      <div class="docs"><p>Of course, list2toinfty diverges when we use eval, but it works fine with evalcbn. It is hard to verify the result
+due to an almost unreadable output. Hence we propose the following </p>
+
+<p>Exercise: Extend the language such that you can implement the &ldquo;take&rdquo; function as known from Haskell within 
+          the language  (if0-expressions or something like it are needed for that)
+          Now add a &ldquo;print&rdquo; function that prints a number on the console. Use it to display the first 
+          3 list elements of test2toinfty are 2,3,4. </p>
+
+<p>&mdash; end of extra material &mdash;</p></div>
+      <div class="code"><code class='highlight'><pre> </pre></code></div>
+    </section>
+    <section id='section-17'>
+      <div class="docs"><p>Let us now consider the question how we can implement call-by-name in the environment-based interpreter.
+Translating the idea of not evaluating the function argument to the environment-based version seems to 
+suggest that the environment should map identifiers to expression instead of values.</p>
+
+<p>However, we run into the same problems that we had with first-class functions before we introduced closures:
+What happens to the deferred substitutions that still have to be applied in the function argument? If
+we discard the environment in which the function argument was defined we again introduce a variant of
+dynamic scoping.</p>
+
+<p>Hence, like for closures, we need to store the environment together with the expression. We call such a 
+pair a <em>thunk</em>. An environment hence becomes a mapping from symbols to thunks. Note that environments
+and thunks are hence mutually recursive. In Scala, we can hence not use type definitions of the form</p>
+
+<p>type Thunk = (Exp, Env)
+type Env = Map[Symbol, Thunk]</p>
+
+<p>Instead, we use a Scala class Env to express this recursion.</p>
+
+<p>Since we want to experiment with different variants of how to generate and evaluate thunks we first
+create a parameterizable variant of the evaluator that leaves open how to 
+i)represent thunks (type Thunk)
+ii) create thunks (method delay)
+iii) evaluate thunks (method force).</p>
+
+<p>Hint: Research on the internet what abstract type members in Scala are.
+      For instance, here: http://www.scala-lang.org/node/105</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">trait</span> <span class="nc">CBN</span> <span class="o">{</span>
+    <span class="k">type</span> <span class="kt">Thunk</span>
+    
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">Env</span><span class="o">(</span><span class="n">map</span><span class="k">:</span> <span class="kt">Map</span><span class="o">[</span><span class="kt">Symbol</span>, <span class="kt">Thunk</span><span class="o">])</span> <span class="o">{</span>
+      <span class="k">def</span> <span class="n">apply</span><span class="o">(</span><span class="n">key</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="n">map</span><span class="o">.</span><span class="n">apply</span><span class="o">(</span><span class="n">key</span><span class="o">)</span>
+      <span class="k">def</span> <span class="o">+(</span><span class="n">other</span><span class="k">:</span> <span class="o">(</span><span class="kt">Symbol</span><span class="o">,</span> <span class="kt">Thunk</span><span class="o">))</span> <span class="k">:</span> <span class="kt">Env</span> <span class="o">=</span> <span class="nc">Env</span><span class="o">(</span><span class="n">map</span><span class="o">+</span><span class="n">other</span><span class="o">)</span>
+    <span class="o">}</span>
+
+    <span class="k">def</span> <span class="n">delay</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Thunk</span>
+    <span class="k">def</span> <span class="n">force</span><span class="o">(</span><span class="n">t</span><span class="k">:</span> <span class="kt">Thunk</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Value</span>
+
+    <span class="c1">// since values also depend on Env and hence on Thunk they need to</span>
+    <span class="c1">// be defined within this trait    </span>
+    <span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Value</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Fun</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span> 
+    <span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Value</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">force</span><span class="o">(</span><span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">))</span> <span class="c1">// force evaluation of thunk if identifier is evaluated</span>
+      <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+        <span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">env</span><span class="o">),</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">env</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+          <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">+</span><span class="n">v2</span><span class="o">)</span>
+          <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+        <span class="o">}</span>
+      <span class="o">}</span>
+      <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">env</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+        <span class="c1">// delay argument expression and add it to environment of the closure</span>
+        <span class="k">case</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">cenv</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">body</span><span class="o">,</span> <span class="n">cenv</span> <span class="o">+</span> <span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">param</span> <span class="o">-&gt;</span> <span class="n">delay</span><span class="o">(</span><span class="n">a</span><span class="o">,</span><span class="n">env</span><span class="o">)))</span>
+        <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+      <span class="o">}</span>
+      <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+      <span class="k">case</span> <span class="n">f</span><span class="nd">@Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">env</span><span class="o">)</span>
+    <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-18'>
+      <div class="docs"><p>Let&rsquo;s now create an instance of CBN that corresponds to the substitution-based call-by-name
+interpreter. A thunk is just a pair of expression and environment. Forcing a thunk just
+evaluates it in the stored environment.</p>
+
+<p>To understand what is going on during evaluation of tests we trace argument evaluation by a 
+printout to the console.</p></div>
+      <div class="code"><code class='highlight'><pre> 
+<span class="k">object</span> <span class="nc">CallByName</span> <span class="k">extends</span> <span class="nc">CBN</span> <span class="o">{</span>
+  <span class="k">type</span> <span class="kt">Thunk</span> <span class="o">=</span> <span class="o">(</span><span class="nc">Exp</span><span class="o">,</span><span class="nc">Env</span><span class="o">)</span>
+  <span class="k">def</span> <span class="n">delay</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">=</span> <span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">env</span><span class="o">)</span>
+  <span class="k">def</span> <span class="n">force</span><span class="o">(</span><span class="n">t</span><span class="k">:</span> <span class="kt">Thunk</span><span class="o">)</span> <span class="k">=</span> <span class="o">{</span>
+    <span class="n">println</span><span class="o">(</span><span class="s">&quot;Forcing evaluation of expression: &quot;</span><span class="o">+</span><span class="n">t</span><span class="o">.</span><span class="n">_1</span><span class="o">)</span>
+    <span class="n">eval</span><span class="o">(</span><span class="n">t</span><span class="o">.</span><span class="n">_1</span><span class="o">,</span><span class="n">t</span><span class="o">.</span><span class="n">_2</span><span class="o">)</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="n">assert</span><span class="o">(</span><span class="nc">CallByName</span><span class="o">.</span><span class="n">eval</span><span class="o">(</span><span class="n">test</span><span class="o">,</span> <span class="nc">CallByName</span><span class="o">.</span><span class="nc">Env</span><span class="o">(</span><span class="nc">Map</span><span class="o">.</span><span class="n">empty</span><span class="o">))</span> <span class="o">==</span> <span class="nc">CallByName</span><span class="o">.</span><span class="nc">NumV</span><span class="o">(</span><span class="mi">12</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-Call-by-need'>
+      <div class="docs"><h2>Call-by-need</h2>
+
+<p>Call-by-name is rather wasteful: If an argument is used n times in the body, the argument
+expression is re-evaluated n-times. For instance, in</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">cbntest</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;double</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">)),</span>
+               <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;double</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="mi">2</span><span class="o">,</span><span class="mi">3</span><span class="o">)))</span></pre></code></div>
+    </section>
+    <section id='section-20'>
+      <div class="docs"><p>the sum of 2 and 3 is computed twice. 
+If the argument is passed again to another function,
+this may lead to an exponential blow-up.</p>
+
+<p>Example:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">blowup</span>  <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">)),</span>
+              <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;b</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;a</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))),</span>
+              <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;c</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;b</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;b</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))),</span>
+              <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;d</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;c</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;c</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))),</span>
+              <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;e</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;d</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;d</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))),</span>
+              <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;e</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">),</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;e</span><span class="o">,</span><span class="-Symbol">&#39;x</span><span class="o">))),</span>
+              <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span> <span class="nc">Add</span><span class="o">(</span><span class="mi">2</span><span class="o">,</span><span class="mi">3</span><span class="o">))))))))</span></pre></code></div>
+    </section>
+    <section id='section-21'>
+      <div class="docs"><p>Can we do better? Yes, by caching the value
+when the argument expression is evaluated for the first time. This evaluation strategy
+is called <em>call-by-need</em>. </p>
+
+<p>Caching is easy to implement in Scala:</p></div>
+      <div class="code"><code class='highlight'><pre> <span class="k">object</span> <span class="nc">CallByNeed</span> <span class="k">extends</span> <span class="nc">CBN</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="k">class</span> <span class="nc">MemoThunk</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">var</span> <span class="n">cache</span><span class="k">:</span> <span class="kt">Value</span> <span class="o">=</span> <span class="kc">null</span>
+  <span class="o">}</span>
+  <span class="k">type</span> <span class="kt">Thunk</span> <span class="o">=</span> <span class="nc">MemoThunk</span>
+  <span class="k">def</span> <span class="n">delay</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">=</span> <span class="nc">MemoThunk</span><span class="o">(</span><span class="n">e</span><span class="o">,</span><span class="n">env</span><span class="o">)</span>
+  <span class="k">def</span> <span class="n">force</span><span class="o">(</span><span class="n">t</span><span class="k">:</span> <span class="kt">Thunk</span><span class="o">)</span> <span class="k">=</span> <span class="o">{</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">t</span><span class="o">.</span><span class="n">cache</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+      <span class="n">println</span><span class="o">(</span><span class="s">&quot;Forcing evaluation of expression: &quot;</span><span class="o">+</span><span class="n">t</span><span class="o">.</span><span class="n">e</span><span class="o">)</span>
+      <span class="n">t</span><span class="o">.</span><span class="n">cache</span> <span class="k">=</span> <span class="n">eval</span><span class="o">(</span><span class="n">t</span><span class="o">.</span><span class="n">e</span><span class="o">,</span> <span class="n">t</span><span class="o">.</span><span class="n">env</span><span class="o">)</span>
+    <span class="o">}</span> <span class="k">else</span> <span class="n">println</span> <span class="o">(</span><span class="s">&quot;Reusing cached value &quot;</span><span class="o">+</span><span class="n">t</span><span class="o">.</span><span class="n">cache</span><span class="o">+</span><span class="s">&quot; for expression &quot;</span><span class="o">+</span><span class="n">t</span><span class="o">.</span><span class="n">e</span><span class="o">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">cache</span>
+  <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-22'>
+      <div class="docs"><p>For instance, compare call-by-need and call-by-name in cbntest or blowup. </p>
+
+<p>However, the meta-language (i.e., the subset of Scala features) used in the
+interpreter has become more complicated: Since we are using mutation, the order
+of evaluation and aliasing of object references becomes important. Luckily, 
+call-by-need agrees with call-by-name with regard to produced values and termination
+behavior, hence it is usually not necessary to reason about programs with the
+call-by-need semantics. If, however, one wants to reason about the performance
+of a program in a call-by-need setting, one has to take these additional complications
+into account. In practice, it is even worse, since languages like Haskell perform
+additional optimizations that, for instance, switch to call-by-value if an analysis
+can determine that an argument will definitely be used (lookup &ldquo;strictness analysis&rdquo;). </p>
+
+<p>Topics for class discussion:
+ &ndash; Is it a good idea to mix a language with implicit mutation (such as Java, Scala, C++, Python, &hellip;)
+   with lazy evaluation?
+ &ndash; How can one simulate lazy evaluation in an eager language? 
+   Basic idea: &lsquo;Lambda&rsquo; as evaluation firewall.</p>
+</div>
+      <div class="code"><code class='highlight'><pre> </pre></code></div>
+    </section>
+  </article>
+</body>
