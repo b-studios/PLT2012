@@ -97,8 +97,10 @@ translations are also often called &ldquo;desugaring&rdquo;.</p></div>
  <span class="c1">// &quot;with&quot; would be a better name for this function, but it is reserved in Scala</span>
 <span class="k">def</span> <span class="n">wth</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">xdef</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">),</span><span class="n">xdef</span><span class="o">)</span></pre></code></div>
     </section>
-    <section id='section-5'>
-      <div class="docs"><p>Like for F1WAE, we will at first define the meaning of FAE in terms of
+    <section id='section-The_Substitution_Based_Interpreter'>
+      <div class="docs"><h2>The Substitution Based Interpreter</h2>
+
+<p>Like for F1WAE, we will at first define the meaning of FAE in terms of
 substitution. Here is the substitution function for FAE.</p></div>
       <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">subst</span><span class="o">(</span><span class="n">e1</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">e2</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="n">e1</span> <span class="k">match</span> <span class="o">{</span>
   <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">e1</span>
@@ -255,7 +257,11 @@ define a non-terminating program. This program is commonly called <em>Omega</em>
       <div class="docs"><p>Try <code>eval(omega)</code> to crash the interpreter ;&ndash;)</p>
 
 <p>Omega can be extended to yield a fixed point combinator, which can be used to 
-encode arbitrary recursive functions. We come back to this topic later.</p>
+encode arbitrary recursive functions. We come back to this topic later.</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-Environment_Based_Interpreter_&amp;amp;_Closures'>
+      <div class="docs"><h2>Environment Based Interpreter &amp; Closures</h2>
 
 <p>Let&rsquo;s now discuss what an environment-based version of this interpreter looks 
 like. Here is a first attempt:</p></div>
@@ -277,15 +283,15 @@ like. Here is a first attempt:</p></div>
 
 <span class="n">assert</span><span class="o">(</span> <span class="n">evalWithEnv0</span><span class="o">(</span><span class="n">test</span><span class="o">,</span> <span class="nc">Map</span><span class="o">.</span><span class="n">empty</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Num</span><span class="o">(</span><span class="mi">12</span><span class="o">))</span></pre></code></div>
     </section>
-    <section id='section-13'>
+    <section id='section-14'>
       <div class="docs"><p>However, consider the following example.</p></div>
       <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">test2</span> <span class="k">=</span> <span class="n">wth</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span> <span class="nc">App</span><span class="o">(</span><span class="-Symbol">&#39;f</span><span class="o">,</span><span class="mi">3</span><span class="o">)),</span> <span class="nc">Fun</span><span class="o">(</span><span class="-Symbol">&#39;y</span><span class="o">,</span><span class="nc">Add</span><span class="o">(</span><span class="-Symbol">&#39;x</span><span class="o">,</span><span class="-Symbol">&#39;y</span><span class="o">))))</span></pre></code></div>
     </section>
-    <section id='section-14'>
+    <section id='section-15'>
       <div class="docs"><p>It works fine in the substitution-based interpreter.</p></div>
       <div class="code"><code class='highlight'><pre><span class="n">assert</span><span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">test2</span><span class="o">)</span> <span class="o">==</span> <span class="nc">Num</span><span class="o">(</span><span class="mi">8</span><span class="o">))</span></pre></code></div>
     </section>
-    <section id='section-15'>
+    <section id='section-16'>
       <div class="docs"><p>But <code>evalWithEnv0(test2,Map.empty)</code> yields an &ldquo;identifier not found: 'x&rdquo; 
 error. </p>
 
@@ -317,7 +323,7 @@ either numbers or closures.</p></div>
 <span class="k">case</span> <span class="k">class</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
 <span class="k">case</span> <span class="k">class</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Fun</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span></pre></code></div>
     </section>
-    <section id='section-16'>
+    <section id='section-17'>
       <div class="docs"><p>The evaluator becomes:</p>
 </div>
       <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">evalWithEnv</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Value</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
