@@ -53,7 +53,7 @@ header nav {
   }
 }
 
-div.docs {
+div.docs, body.markdown > article {
 
   padding: 1px 1em;
 
@@ -120,42 +120,26 @@ div.code {
         display: table-cell;
         vertical-align: top;
       }
-
-      > div.docs {
-        width: 40%;
-        max-width: 900px;
-        min-width: 400px;
-        padding: 0 1em;
-        border-right: 1px solid #e5e5ee;
-      }
-
-      > div.code {
-        padding: 0 1em;
-        border: none;
-      }
-
-      &:not(:first-child) > div.docs:hover + div.code {
-        @include transition(all, 0.3s);
-        @include box-shadow(5px 0 0 0 rgba(0,0,0,0.05) inset);
-        background: darken($background-color, 1%);
-      }
-
     }
   }
-}
 
-/* ------------------------ Markdown Pages -----------------------*/
-body.markdown {
-  > article {
-    @extend div.docs;
+  div.docs, body.markdown > article {
+    width: 40%;
+    max-width: 900px;
+    min-width: 400px;
+    padding: 0 1em;
+    border-right: 1px solid #e5e5ee;
   }
-}
 
-@media only screen and (min-width: 950px) {
-  body.markdown {
-    > article {
-      @extend #documentation div.docs;
-    }
+  div.code {
+    padding: 0 1em;
+    border: none;
+  }
+
+  > section:not(:first-child) > div.docs:hover + div.code {
+    @include transition(all, 0.3s);
+    @include box-shadow(5px 0 0 0 rgba(0,0,0,0.05) inset);
+    background: darken($background-color, 1%);
   }
 }
 
