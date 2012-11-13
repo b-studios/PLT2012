@@ -242,28 +242,28 @@ header nav {
       transition: all 0.3s ease-in-out;
       color: #fff; }
 
-div.docs {
+div.docs, body.markdown > article {
   padding: 1px 1em;
   background: #ffffff; }
-  div.docs h1, div.docs h2, div.docs h3 {
+  div.docs h1, body.markdown > article h1, div.docs h2, body.markdown > article h2, div.docs h3, body.markdown > article h3 {
     font-family: Lato, sans-serif;
     font-weight: 300;
     margin: 1em 0 0.5em 0; }
-  div.docs h1 {
+  div.docs h1, body.markdown > article h1 {
     font-size: 24pt; }
-  div.docs h2 {
+  div.docs h2, body.markdown > article h2 {
     font-size: 20pt; }
-  div.docs hr {
+  div.docs hr, body.markdown > article hr {
     border: 0 none;
     border-top: 1px solid #e5e5ee;
     height: 1px;
     margin: 20px 0; }
-  div.docs pre {
+  div.docs pre, body.markdown > article pre {
     padding-left: 2em; }
-  div.docs pre > code {
+  div.docs pre > code, body.markdown > article pre > code {
     background: none;
     border: none; }
-  div.docs code {
+  div.docs code, body.markdown > article code {
     border: 1px solid #dedede;
     background: #f5f5ff;
     padding: 0 0.5em; }
@@ -305,6 +305,9 @@ div.code {
         -o-box-shadow: 5px 0 0 0 rgba(0, 0, 0, 0.05) inset;
         box-shadow: 5px 0 0 0 rgba(0, 0, 0, 0.05) inset;
         background: #f0f0ff; } }
+body.markdown > article {
+  width: auto; }
+
 /*---------------------- Syntax Highlighting -----------------------------*/
 td.linenos {
   background-color: #f0f0f0;
