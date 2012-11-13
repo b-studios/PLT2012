@@ -300,7 +300,7 @@ div.code {
     padding: 0 1em;
     border: none; }
 
-  > section:not(:first-child) > div.docs:hover + div.code {
+  article > section:not(:first-child) > div.docs:hover + div.code {
     -webkit-transition: all 0.3s ease-in-out;
     -moz-transition: all 0.3s ease-in-out;
     -o-transition: all 0.3s ease-in-out;

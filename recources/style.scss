@@ -141,7 +141,7 @@ div.code {
     border: none;
   }
 
-  > section:not(:first-child) > div.docs:hover + div.code {
+  article > section:not(:first-child) > div.docs:hover + div.code {
     @include transition(all, 0.3s);
     @include box-shadow(5px 0 0 0 rgba(0,0,0,0.05) inset);
     background: darken($background-color, 1%);
