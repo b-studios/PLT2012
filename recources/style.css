@@ -267,6 +267,9 @@ div.docs, body.markdown > article {
     border: 1px solid #dedede;
     background: #f5f5ff;
     padding: 0 0.5em; }
+  div.docs blockquote, body.markdown > article blockquote {
+    padding-left: 2em;
+    padding-right: 1em; }
 
 div.code {
   border-top: 1px solid #e5e5ee;

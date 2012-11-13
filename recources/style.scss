@@ -94,6 +94,11 @@ div.docs, body.markdown > article {
     background: $background-color;
     padding: 0 0.5em;
   }
+
+  blockquote {
+    padding-left: 2em;
+    padding-right: 1em;
+  }
 }
 
 div.code {
