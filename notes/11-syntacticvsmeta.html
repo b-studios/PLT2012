@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>11-syntacticvsmeta.scala</title>
+  <link rel="stylesheet" href="../recources/style.css">
+</head>
+<body>
+  <a href="https://github.com/klauso/PLT2012"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
+  <header>
+  <nav>
+    <ul>    
+        <li><a href="10-gc.html">10-gc.scala</a></li>
+        <li><a href="11-syntacticvsmeta.html">11-syntacticvsmeta.scala</a></li>
+        <li><a href="12-churchencoding.html">12-churchencoding.scala</a></li>
+        <li><a href="13-cpstransformation.html">13-cpstransformation.scala</a></li>
+        <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="3-wae.html">3-wae.scala</a></li>
+        <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
+        <li><a href="5-fae.html">5-fae.scala</a></li>
+        <li><a href="6-lcfae.html">6-lcfae.scala</a></li>
+        <li><a href="8-rcfae.html">8-rcfae.scala</a></li>
+        <li><a href="9-bcfae.html">9-bcfae.scala</a></li>
+    </ul>
+  </nav>
+  </header>
+  <article id="documentation">
+    <section id='section-1'>
+      <div class="docs"><p>These are lecture notes for the &ldquo;Programming Languages and Types&rdquo; course by Klaus Ostermann 
+at the University of Marburg</p>
+
+<p>Please comment/correct/improve these notes via github. Proposals or questions can
+be submitted as an &ldquo;issue&rdquo;; proposals for corrections/extensions/improvements can
+be submitted as a &ldquo;pull request&rdquo;. You can of course also send an email to Klaus Ostermann</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-2'>
+      <div class="docs"><p>For each desired language semantics, there exist many different ways to
+implement an interpreter in some meta-language to encode this semantics.</p>
+
+<p>One question that is of particular importance is whether a language feature
+is implemented by using a corresponding language feature of the meta-language,
+or whether it is implemented using more primitive language constructs.
+The first case is called meta-interpretation, the second case syntactic interpretation. </p>
+
+<p>Meta-interpretation can be convenient if we are not interested in having
+control over the exact meaning of the construct, or if the way the meta-language handles
+this construct is just what we want for our object language. 
+Syntactic interpretation is required if we want to understand what the language feature
+really means in terms of more primitive constructs, or if we want to implement the
+language feature differently than the meta language. 
+Of course, if the meta language has no corresponding feature, then we have no choice
+but to make a syntactic interpretation.</p>
+
+<p>Our FAE interpreter is a meta-interpreter with respect to many features. For instance,
+it does not tell us
+&ndash; the precision of numbers, or the algorithm for addition
+&ndash; how the call stack is managed, e.g. the maximum depth of recursion supported by the interpreter
+&ndash; whether/how memory management for closures works (they are objects on the heap!)</p>
+
+<p>That said, it is possible to make the FAE interpreters still more &ldquo;meta&rdquo;.
+Here are two examples.
+Here is a version of FAE that uses a different representation of the program syntax,
+namely one using meta-language functions to represent object-language functions.
+This technique is called higher-order abstract syntax, or HOAS.
+For instance, the function Fun(&lsquo;x, Add('x,5)), is now represented as Fun( x =&gt; Add(x,5)).</p>
+
+<p>The interpreter becomes rather short, because substitution and lexical scoping are
+now being dealt with by the corresponding meta-level construct.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">object</span> <span class="nc">HOAS</span> <span class="o">{</span>
+    <span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Exp</span> <span class="o">=&gt;</span> <span class="nc">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">App</span> <span class="o">(</span><span class="n">funExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">argExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+    <span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;unbound identifier: &quot;</span><span class="o">+</span><span class="n">v</span><span class="o">)</span>
+      <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">),</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+                         <span class="k">case</span> <span class="o">(</span><span class="nc">Num</span><span class="o">(</span><span class="n">x</span><span class="o">),</span><span class="nc">Num</span><span class="o">(</span><span class="n">y</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">Num</span><span class="o">(</span><span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="o">)</span>
+                         <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+                        <span class="o">}</span>
+      <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+         <span class="k">case</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">f</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span> <span class="n">f</span><span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">)))</span>
+         <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+      <span class="o">}</span>
+      <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">e</span> <span class="c1">// numbers and functions evaluate to themselves</span>
+    <span class="o">}</span>      
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-3'>
+      <div class="docs"><p>A different way to use meta-level functions in the interpreter is
+to represent object-level closures by meta-level closures.
+Notice that this interpreter has no control anymore about scoping; 
+rather, it is completely inherited from the meta language. </p>
+
+<p>A particularly pleasing and important property of this interpreter
+is that it is <em>compositional</em>, meaning that all recursive calls of eval
+are only on subparts of the original expression. This means that it
+becomes particularly easy to reason about program equivalence in the
+object language in terms of program equivalence in the meta language:
+Two object language expressions are equivalent if their &ldquo;denotations&rdquo;
+as meta-level expressions are equivalent in the meta-level. </p>
+
+<p>Compositionality is the cornerstone of denotational semantics. 
+A denotational semantics can be thought of as a compositional interpreter
+in which the meta-language is mathematics.</p>
+
+<p>Compositionality also has a rather practical side-effect: It means that
+we can implement the interpreter in the internal visitor style that 
+we learned about in the first lecture (recall that the internal visitor 
+style enforces compositionality)</p>
+
+<p>Recommended exercise: Re-implement the interpreter as an internal visitor. </p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">App</span> <span class="o">(</span><span class="n">funExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">argExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+
+<span class="k">object</span> <span class="nc">Compositional</span> <span class="o">{</span> 
+    <span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Value</span>
+    <span class="k">type</span> <span class="kt">Env</span> <span class="o">=</span> <span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>, <span class="kt">Value</span><span class="o">]</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">FunV</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Value</span> <span class="o">=&gt;</span> <span class="nc">Value</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+
+    <span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Env</span> <span class="o">=&gt;</span> <span class="nc">Value</span> <span class="k">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">env</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+      <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">env</span> <span class="k">=&gt;</span> <span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+      <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span> <span class="o">(</span><span class="n">env</span><span class="o">)</span> <span class="k">=&gt;</span>
+        <span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">)(</span><span class="n">env</span><span class="o">),</span>  <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">)(</span><span class="n">env</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+          <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">+</span><span class="n">v2</span><span class="o">)</span>
+          <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+        <span class="o">}</span>
+      <span class="o">}</span>
+      <span class="k">case</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">env</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">FunV</span><span class="o">(</span> <span class="o">(</span><span class="n">v</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">body</span><span class="o">)(</span><span class="n">env</span> <span class="o">+</span> <span class="o">(</span><span class="n">param</span> <span class="o">-&gt;</span> <span class="n">v</span><span class="o">)))</span>
+      <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">env</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">)(</span><span class="n">env</span><span class="o">),</span> <span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">)(</span><span class="n">env</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+        <span class="c1">// Use environment stored in closure to realize proper lexical scoping!</span>
+        <span class="k">case</span> <span class="o">(</span><span class="nc">FunV</span><span class="o">(</span><span class="n">g</span><span class="o">),</span><span class="n">arg</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">g</span><span class="o">(</span><span class="n">arg</span><span class="o">)</span>
+        <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+      <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-4'>
+      <div class="docs"><p>For comparison, here is our original FAE interpreter.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">object</span> <span class="nc">FAE</span> <span class="o">{</span>
+    <span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Value</span>
+    <span class="k">type</span> <span class="kt">Env</span> <span class="o">=</span> <span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>, <span class="kt">Value</span><span class="o">]</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+    <span class="k">case</span> <span class="k">class</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Fun</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+
+    <span class="k">def</span> <span class="n">eval</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Value</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+      <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+      <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+        <span class="o">(</span><span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">env</span><span class="o">),</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span><span class="n">env</span><span class="o">))</span> <span class="k">match</span> <span class="o">{</span>
+          <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">+</span><span class="n">v2</span><span class="o">)</span>
+          <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+        <span class="o">}</span>
+      <span class="o">}</span>
+      <span class="k">case</span> <span class="n">f</span><span class="nd">@Fun</span><span class="o">(</span><span class="n">param</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">)</span>
+      <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">env</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+        <span class="c1">// Use environment stored in closure to realize proper lexical scoping!</span>
+        <span class="k">case</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">closureEnv</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">body</span><span class="o">,</span> <span class="n">closureEnv</span> <span class="o">+</span> <span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">param</span> <span class="o">-&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">,</span><span class="n">env</span><span class="o">)))</span>
+        <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+      <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-5'>
+      <div class="docs"><p>We will soon learn about ways to make FAE more syntactic in various ways.
+For instance, we will no longer rely on call-stack management of the meta-language,
+or the existence of higher-order functions.</p>
+
+<p>One dimension in which the interpreter could easily be made more syntactic is
+the treatment of numbers and arithmetic. For instance, we could represent numbers
+as sequences of digits instead of Scala numbers. </p>
+
+<p>Another aspect in which our FAE interpreter relies on the host language is memory
+management. This is particularly relevant for environments stored inside closures.
+These environments cannot be organized on the call stack and hence need memory
+management. Since we are using Scala references to refer to environments, environments
+that are no longer needed are collected by the Scala (or rather, Java) virtual machine.</p>
+</div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+  </article>
+</body>

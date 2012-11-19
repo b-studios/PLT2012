@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>13-cpstransformation.scala</title>
+  <link rel="stylesheet" href="../recources/style.css">
+</head>
+<body>
+  <a href="https://github.com/klauso/PLT2012"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
+  <header>
+  <nav>
+    <ul>    
+        <li><a href="10-gc.html">10-gc.scala</a></li>
+        <li><a href="11-syntacticvsmeta.html">11-syntacticvsmeta.scala</a></li>
+        <li><a href="12-churchencoding.html">12-churchencoding.scala</a></li>
+        <li><a href="13-cpstransformation.html">13-cpstransformation.scala</a></li>
+        <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="3-wae.html">3-wae.scala</a></li>
+        <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
+        <li><a href="5-fae.html">5-fae.scala</a></li>
+        <li><a href="6-lcfae.html">6-lcfae.scala</a></li>
+        <li><a href="8-rcfae.html">8-rcfae.scala</a></li>
+        <li><a href="9-bcfae.html">9-bcfae.scala</a></li>
+    </ul>
+  </nav>
+  </header>
+  <article id="documentation">
+    <section id='section-1'>
+      <div class="docs"><p>These are lecture notes for the &ldquo;Programming Languages and Types&rdquo; course by Klaus Ostermann 
+at the University of Marburg</p>
+
+<p>loosely based on Sec. 17 of &ldquo;Programming Languages: Application and Interpretation&rdquo; by
+Shriram Krishnamurthi</p>
+
+<p>Please comment/correct/improve these notes via github. Proposals or questions can
+be submitted as an &ldquo;issue&rdquo;; proposals for corrections/extensions/improvements can
+be submitted as a &ldquo;pull request&rdquo;. You can of course also send an email to Klaus Ostermann</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-2'>
+      <div class="docs"><p>Consider the following very simple program.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">inputNumber</span><span class="o">(</span><span class="n">prompt</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">println</span><span class="o">(</span><span class="n">prompt</span><span class="o">)</span>
+  <span class="nc">Integer</span><span class="o">.</span><span class="n">parseInt</span><span class="o">(</span><span class="n">readLine</span><span class="o">())</span>
+<span class="o">}</span>
+<span class="k">def</span> <span class="n">progSimple</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">println</span><span class="o">(</span><span class="n">inputNumber</span><span class="o">(</span><span class="s">&quot;First number:&quot;</span> <span class="o">)</span> <span class="o">+</span> <span class="n">inputNumber</span><span class="o">(</span><span class="s">&quot;Second number&quot;</span><span class="o">))</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-3'>
+      <div class="docs"><p>Now consider a web version of the program: 
+&ndash; the first number is entered on the first page
+&ndash; then the first number is submitted, a form to enter the second number is shown
+&ndash; when the second number is submitted, a form with the result is generated and shown.</p>
+
+<p>Even this &ldquo;addition server&rdquo; is difficult to implement. Because http is a stateless protocol (for good reasons),
+every web program is basically forced to terminate after every request. This means that 
+the Web developer must turn this application into three programs:
+(a) The first program displays the first form.
+(b) The second program consumes the form values from the first form, and generates the second form.
+&copy; The third program consumes the form values from the second form, computes the output, and
+generates the result.</p>
+
+<p>Because the value entered in the first form is needed by the third program to compute its output, this
+value must somehow be transmitted between from the first program to the third. This is typically done
+by using the hidden field mechanism of HTML.</p>
+
+<p>Suppose, instead of using a hidden field, the application developer used a Java Servlet session object,
+or a database field, to store the first number. (Application developers are often pushed to do this
+because that is the feature most conveniently supported by the language and API they are employing.)
+Then, if the developer were to exploratorily open multiple windows
+the application can compute the wrong answer. </p>
+
+<p>Hence, the actual program in a web developer&rsquo;s mind has the structure of the following program.
+An actual web program is of course more complicated, but this primitive model of web
+programming is sufficient to explain the problem.</p></div>
+      <div class="code"><code class='highlight'><pre> 
+<span class="k">def</span> <span class="n">webdisplay</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Nothing</span> <span class="o">=</span> <span class="o">{</span> <span class="c1">// we use the return type &quot;Nothing&quot; for functions that will never return (normally)</span>
+  <span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="o">)</span>
+  <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;program terminated&quot;</span><span class="o">)</span>
+<span class="o">}</span>
+
+<span class="k">def</span> <span class="n">webread</span><span class="o">(</span><span class="n">prompt</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">continue</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Nothing</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">println</span><span class="o">(</span><span class="n">prompt</span><span class="o">)</span>
+  <span class="n">println</span><span class="o">(</span><span class="s">&quot;send input to: &quot;</span><span class="o">+</span><span class="n">continue</span><span class="o">)</span>
+  <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;program terminated&quot;</span><span class="o">)</span>
+<span class="o">}</span>
+
+<span class="k">def</span> <span class="n">program1</span> <span class="k">=</span> <span class="n">webread</span><span class="o">(</span><span class="s">&quot;enter first number&quot;</span><span class="o">,</span> <span class="s">&quot;s2&quot;</span><span class="o">)</span>
+<span class="k">def</span> <span class="n">program2</span><span class="o">(</span><span class="n">n1</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">webread</span><span class="o">(</span><span class="s">&quot;enter second number and remind me of previoulsy entered number &quot;</span><span class="o">+</span><span class="n">n1</span><span class="o">,</span> <span class="s">&quot;s3&quot;</span><span class="o">)</span>
+<span class="k">def</span> <span class="n">program3</span><span class="o">(</span><span class="n">n1</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">n2</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">webdisplay</span><span class="o">(</span><span class="s">&quot;The sum of &quot;</span><span class="o">+</span><span class="n">n1</span><span class="o">+</span><span class="s">&quot; and &quot;</span><span class="o">+</span><span class="n">n2</span><span class="o">+</span><span class="s">&quot; is &quot;</span><span class="o">+(</span><span class="n">n1</span><span class="o">+</span><span class="n">n2</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-4'>
+      <div class="docs"><p>We could write a better webread and webdisplay procedure if we could somehow get hold of the
+pending computation at the time when the procedure was invoked. Such a pending computation is
+called <em>continuation</em>.</p>
+
+<p>Let&rsquo;s consider the continuation at the point of the first interaction in the original program,</p>
+
+<p>def prog = {
+    println(inputNumber() + inputNumber())<br>
+  }</p>
+
+<p>The pending computation (or, continuation in the following) is to take the result of the first
+inputNumber invocation, add to it the result of the second invocation, and display it.
+We can express the continuation as a function:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">cont1</span> <span class="k">=</span> <span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">println</span><span class="o">(</span><span class="n">n</span> <span class="o">+</span> <span class="n">inputNumber</span><span class="o">(</span><span class="s">&quot;Second number&quot;</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-5'>
+      <div class="docs"><p>Similarly, the continuation at the second point of interaction is: 
+val cont2 = (m: Int) =&gt; println(n+m)
+where n is the result of the first input, which is stored in the closure of cont2</p>
+
+<p>Assuming an explicit representation of the continuation, it is obvious that we can now 
+write a version of webread, called webread_k, which takes the continuation as second parameter and invokes
+the continuation once the answer to the result is received by the server.
+This can be implemented, say, by associating to a continatuion a unique ID, store the continuation
+in a hashmap on the server using this ID, and storing the ID in the form such that it gets
+submitted back to the server once the client presses the submit button.</p>
+
+<p>Here is code illustrating the idea. For simplicity we assume that all web forms return 
+a single integer value.</p></div>
+      <div class="code"><code class='highlight'><pre> 
+ 
+<span class="k">val</span> <span class="n">continuations</span> <span class="k">=</span> <span class="k">new</span> <span class="n">scala</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">mutable</span><span class="o">.</span><span class="nc">HashMap</span><span class="o">[</span><span class="kt">Int</span>, <span class="kt">Int</span><span class="k">=&gt;</span><span class="kt">Nothing</span><span class="o">]()</span>
+<span class="k">var</span> <span class="n">nextId</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">def</span> <span class="n">getNextID</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">nextId</span> <span class="o">+=</span> <span class="mi">1</span>
+  <span class="n">nextId</span>
+<span class="o">}</span>
+
+<span class="k">def</span> <span class="n">webread_k</span><span class="o">(</span><span class="n">prompt</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">Int</span><span class="o">=&gt;</span><span class="nc">Nothing</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Nothing</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="k">val</span> <span class="n">id</span> <span class="k">=</span> <span class="n">getNextID</span>
+  <span class="n">continuations</span> <span class="o">+=</span> <span class="o">(</span><span class="n">id</span> <span class="o">-&gt;</span> <span class="n">k</span><span class="o">)</span>
+  <span class="n">println</span><span class="o">(</span><span class="n">prompt</span><span class="o">)</span>
+  <span class="n">println</span><span class="o">(</span><span class="s">&quot;to continue, invoke continuation: &quot;</span><span class="o">+</span><span class="n">id</span><span class="o">)</span>
+  <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;program terminated&quot;</span><span class="o">)</span>
+<span class="o">}</span>
+
+<span class="k">def</span> <span class="n">continue</span><span class="o">(</span><span class="n">kid</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">result</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">continuations</span><span class="o">(</span><span class="n">kid</span><span class="o">)(</span><span class="n">result</span><span class="o">)</span>  </pre></code></div>
+    </section>
+    <section id='section-6'>
+      <div class="docs"><p>Using webread_k, we can now define our addition server as follows.
+If you try prog, ignore the stack traces.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">webprog</span> <span class="k">=</span> <span class="n">webread_k</span><span class="o">(</span><span class="s">&quot;enter first number&quot;</span><span class="o">,</span> <span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span>
+             <span class="n">webread_k</span><span class="o">(</span><span class="s">&quot;enter second number&quot;</span><span class="o">,</span> <span class="o">(</span><span class="n">m</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">webdisplay</span><span class="o">(</span><span class="s">&quot;The sum of &quot;</span><span class="o">+</span><span class="n">n</span><span class="o">+</span><span class="s">&quot; and &quot;</span><span class="o">+</span><span class="n">m</span><span class="o">+</span><span class="s">&quot; is &quot;</span><span class="o">+(</span><span class="n">n</span><span class="o">+</span><span class="n">m</span><span class="o">))))</span></pre></code></div>
+    </section>
+    <section id='section-7'>
+      <div class="docs"><p>For instance, try:
+scala&gt; webprog          &mdash; yields some continuation id c1
+scala&gt; continue(c1,5)   &mdash; yields some continuation id c2<br>
+scala&gt; continue(c2,7)  </p>
+
+<p>This should yield the result 12 as expected. But also try:
+scala&gt; webprog          &mdash; yields some continuation id c1
+scala&gt; contine(c1,5)    &mdash; yields some continuation id c2
+scala&gt; contine(c1,6)    &mdash; yields some continuation id c3
+scala&gt; continue(c2,3)   &mdash; should yield 8
+scala&gt; continue(c3,3)   &mdash; should yield 9</p>
+
+<p>The style of programming in webprog, which is obviously more complicated than the logical 
+structure of progSimple, shows up in many practical programming scenarios &ndash; server-side web programming
+is just one of them. For instance, in JavaScript many API functions for asynchronous communication
+such as httprequest in AJAX require to pass a callback function, which leads to similar code
+as the one in webprog above.</p>
+
+<p>Let&rsquo;s consider this &ldquo;web transformation&rdquo; &ndash; the transformation from progSimple to webprog &ndash; in more detail.
+To this purpose, let&rsquo;s make our application a bit more sophisticated. Instead of entering only two
+numbers, the user enters n numbers, e.g., the prices of a list of n items.</p>
+
+<p>Here is the &ldquo;non-web&rdquo; version of the application:</p></div>
+      <div class="code"><code class='highlight'><pre> 
+<span class="k">def</span> <span class="n">allCosts</span><span class="o">(</span><span class="n">itemList</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">itemList</span> <span class="k">match</span> <span class="o">{</span>
+   <span class="k">case</span> <span class="nc">Nil</span> <span class="k">=&gt;</span> <span class="mi">0</span>
+   <span class="k">case</span> <span class="n">x</span> <span class="o">::</span> <span class="n">rest</span> <span class="k">=&gt;</span> <span class="n">inputNumber</span><span class="o">(</span><span class="s">&quot;Cost of item &quot;</span><span class="o">+</span><span class="n">x</span><span class="o">+</span><span class="s">&quot;:&quot;</span><span class="o">)</span> <span class="o">+</span> <span class="n">allCosts</span><span class="o">(</span><span class="n">rest</span><span class="o">)</span>
+<span class="o">}</span>
+<span class="k">val</span> <span class="n">testData</span> <span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">List</span><span class="o">(</span><span class="s">&quot;banana&quot;</span><span class="o">,</span> <span class="s">&quot;apple&quot;</span><span class="o">,</span> <span class="s">&quot;orange&quot;</span><span class="o">)</span>
+
+<span class="k">def</span> <span class="n">test</span> <span class="k">=</span> <span class="n">println</span><span class="o">(</span><span class="s">&quot;Total sum: &quot;</span><span class="o">+</span><span class="n">allCosts</span><span class="o">(</span><span class="n">testData</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-8'>
+      <div class="docs"><p>This version of allCosts is clearly not web-friendly, because it uses inputNumber,
+which we do not know how to implement for the web.</p>
+
+<p>The first thing to observe is that on its own, tally is not a complete program: it doesn&rsquo;t do anything!
+Instead, it is a library procedure that may be used in many different contexts. Because it has a Web interaction,
+however, there is the danger that at the point of interaction, the rest of the computation &mdash;&ndash; that is, the
+computation that invoked allCosts &mdash;&ndash; will be lost. To prevent this, allCosts must consume an extra argument, 
+a continuation, that represents the rest of the pending computation. To signify this change in contract, we will use
+the convention of appending _k to the name of the procedure and k to name the continuation parameter.</p></div>
+      <div class="code"><code class='highlight'><pre> </pre></code></div>
+    </section>
+    <section id='section-9'>
+      <div class="docs"><p>Here is a first attempt to define allCosts_k.</p>
+
+<p>def allCosts<em>k(itemList: List[String], k: Int =&gt; Nothing) : Nothing = itemList match {
+   case Nil =&gt; 0
+   case x :: rest =&gt; webread</em>k(&ldquo;Cost of item &rdquo;+x+&ldquo;:&rdquo;, n =&gt; n+allCosts_k(rest,k)) 
+}</p>
+
+<p>This may look reasonable, but it suffers from an immediate problem. When the recursive call occurs, if
+the list had two or more elements, then there will immediately be another Web interaction. Because this will
+terminate the program, the pending addition will be lost! Therefore, the addition of n has to move into the
+continuation fed to allCosts_k. In code:</p>
+
+<p>def allCosts<em>k(itemList: List[String], k: Int =&gt; Nothing) : Nothing = itemList match {
+   case Nil =&gt; 0
+   case x :: rest =&gt; webread</em>k(&ldquo;Cost of item &rdquo;+x+&ldquo;:&rdquo;, n =&gt; allCosts<em>k(rest,m =&gt; k(m+n))) 
+}
+That is, the receiver of the Web interaction is invoked with the cost of the first item. When allCosts</em>k is invoked
+recursively, it is applied to the rest of the list. Its receiver must therefore receive the tally of costs of the
+remaining items. That explains the pattern in the receiver.</p>
+
+<p>The only problem is, where does a continuation ever get a value? We create larger-and-larger continuation on
+each recursive invocation, but what ever invokes them?</p>
+
+<p>Here is the same problem from a different angle (that also answers the question above). Notice that each
+recursive invocation of allCosts_k takes place in the aftermath of a Web interaction. We have already seen how
+the act of Web interaction terminates the pending computation. Therefore, when the list empties, where
+is the value 0 going? Presumably to the pending computation, but there is none. Any computation that
+would have been pending has now been recorded in k, which is expecting a value. Therefore, the correct
+transformation of this procedure is:</p></div>
+      <div class="code"><code class='highlight'><pre> 
+<span class="k">def</span> <span class="n">allCosts_k</span><span class="o">(</span><span class="n">itemList</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">],</span> <span class="n">k</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=&gt;</span> <span class="nc">Nothing</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Nothing</span> <span class="o">=</span> <span class="n">itemList</span> <span class="k">match</span> <span class="o">{</span>
+   <span class="k">case</span> <span class="nc">Nil</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span>
+   <span class="k">case</span> <span class="n">x</span> <span class="o">::</span> <span class="n">rest</span> <span class="k">=&gt;</span> <span class="n">webread_k</span><span class="o">(</span><span class="s">&quot;Cost of item &quot;</span><span class="o">+</span><span class="n">x</span><span class="o">+</span><span class="s">&quot;:&quot;</span><span class="o">,</span> <span class="n">n</span> <span class="k">=&gt;</span> <span class="n">allCosts_k</span><span class="o">(</span><span class="n">rest</span><span class="o">,</span><span class="n">m</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="n">m</span><span class="o">+</span><span class="n">n</span><span class="o">)))</span> 
+<span class="o">}</span>
+
+<span class="k">def</span> <span class="n">testweb</span> <span class="k">=</span> <span class="n">allCosts_k</span><span class="o">(</span><span class="n">testData</span><span class="o">,</span> <span class="n">m</span> <span class="k">=&gt;</span> <span class="n">webdisplay</span><span class="o">(</span><span class="s">&quot;Total sum: &quot;</span><span class="o">+</span><span class="n">m</span><span class="o">))</span></pre></code></div>
+    </section>
+    <section id='section-10'>
+      <div class="docs"><p>Let&rsquo;s now consider the case that we have used a library function for the iteration in allCosts, namely
+the map function, which we replicate here.</p></div>
+      <div class="code"><code class='highlight'><pre> <span class="k">def</span> <span class="n">map</span><span class="o">[</span><span class="kt">S</span>,<span class="kt">T</span><span class="o">](</span><span class="n">c</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">S</span><span class="o">],</span> <span class="n">f</span><span class="k">:</span> <span class="kt">S</span><span class="o">=&gt;</span><span class="n">T</span><span class="o">)</span> <span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span> <span class="k">=</span> <span class="n">c</span> <span class="k">match</span> <span class="o">{</span>
+   <span class="k">case</span> <span class="nc">Nil</span> <span class="k">=&gt;</span> <span class="nc">Nil</span>
+   <span class="k">case</span> <span class="n">x</span> <span class="o">::</span> <span class="n">rest</span> <span class="k">=&gt;</span> <span class="n">f</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="o">::</span> <span class="n">map</span><span class="o">(</span><span class="n">rest</span><span class="o">,</span><span class="n">f</span><span class="o">)</span> 
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-11'>
+      <div class="docs"><p>Using map, we can rephrase allCosts as follows.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">allCosts2</span><span class="o">(</span><span class="n">itemList</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">map</span><span class="o">(</span><span class="n">itemList</span><span class="o">,</span> <span class="o">(</span><span class="n">x</span><span class="k">:</span><span class="kt">String</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">inputNumber</span><span class="o">(</span><span class="s">&quot;Cost of item &quot;</span><span class="o">+</span><span class="n">x</span><span class="o">+</span><span class="s">&quot;:&quot;</span><span class="o">)).</span><span class="n">sum</span></pre></code></div>
+    </section>
+    <section id='section-12'>
+      <div class="docs"><p>What if we we want to use map in allCosts_k?</p>
+
+<p>Just using webread<em>k in place of inputNumber will not work, since webread</em>k expects an additional parameter.
+Obviously we must somehow modify the definition of map. But what can we pass as second parameter in the call
+to f? </p>
+
+<p>Insight: We must perform the &ldquo;web transformation&rdquo; to map as well. We call the reslt map_k. Here is the code:</p></div>
+      <div class="code"><code class='highlight'><pre> 
+<span class="k">def</span> <span class="n">map_k</span><span class="o">[</span><span class="kt">S</span>,<span class="kt">T</span><span class="o">](</span><span class="n">c</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">S</span><span class="o">],</span> <span class="n">f</span><span class="k">:</span> <span class="o">(</span><span class="kt">S</span><span class="o">,</span><span class="kt">T</span><span class="o">=&gt;</span><span class="nc">Nothing</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Nothing</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Nothing</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Nothing</span> <span class="o">=</span> <span class="n">c</span> <span class="k">match</span> <span class="o">{</span>
+   <span class="k">case</span> <span class="nc">Nil</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="nc">Nil</span><span class="o">)</span>
+   <span class="k">case</span> <span class="n">x</span> <span class="o">::</span> <span class="n">rest</span> <span class="k">=&gt;</span> <span class="n">f</span><span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">t</span> <span class="k">=&gt;</span> <span class="n">map_k</span><span class="o">(</span><span class="n">rest</span><span class="o">,</span> <span class="n">f</span><span class="o">,</span> <span class="o">(</span><span class="n">tr</span><span class="k">:</span><span class="kt">List</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="n">t</span><span class="o">::</span><span class="n">tr</span><span class="o">)))</span>     
+<span class="o">}</span>
+
+<span class="k">def</span> <span class="n">allCosts2_k</span><span class="o">(</span><span class="n">itemList</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">],</span> <span class="n">k</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=&gt;</span> <span class="nc">Nothing</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Nothing</span> <span class="o">=</span> 
+   <span class="n">map_k</span><span class="o">(</span><span class="n">itemList</span><span class="o">,</span> <span class="o">(</span><span class="n">x</span><span class="k">:</span><span class="kt">String</span><span class="o">,</span><span class="n">k2</span><span class="k">:</span><span class="kt">Int</span><span class="o">=&gt;</span><span class="nc">Nothing</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">webread_k</span><span class="o">(</span><span class="s">&quot;Cost of item &quot;</span><span class="o">+</span><span class="n">x</span><span class="o">+</span><span class="s">&quot;:&quot;</span><span class="o">,</span> <span class="n">k2</span><span class="o">),(</span><span class="n">l</span><span class="k">:</span><span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="n">l</span><span class="o">.</span><span class="n">sum</span><span class="o">))</span> 
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-13'>
+      <div class="docs"><p>Implications of the &ldquo;web transformation&rdquo;: </p>
+
+<ol>
+<li><p>We have had to make decisions about the order of evaluation. That is, we had to choose whether
+to evaluate the left or the right argument of addition first. This was an issue we had specified only
+implicitly earlier; if our evaluator had chosen to evaluate arguments right-to-left, the Web program at
+the beginning of this document would have asked for the second argument before the first! We have
+made this left-to-right order of evaluation explicit in our transformation.</p></li>
+<li><p>The transformation we use is global, namely it (potentially) affects all the procedures in the program
+by forcing them all to consume an extra continuation as an argument. We usually don&rsquo;t have a choice as
+to whether or not to transform a procedure. Suppose f invokes g and g invokes h, and we transform
+f to f<em>k but don&rsquo;t transform g or h. Now when f</em>k invokes g and g invokes h, suppose h consumes
+input from the Web. At this point the program terminates, but the last continuation procedure (necessary
+to resume the computation when the user supplies an input) is the one given to f_k, with all record of
+g and h lost.</p></li>
+<li><p>This transformation sequentializes the program. Given a nested expression, it forces the programmer
+to choose which sub-expression to evaluate first (a consequence of the first point above); further, every
+subsequent operation lies in the continuation, which in turn picks the first expression to evaluate, pushing
+all other operations into its continuation; and so forth. The net result is a program that looks an awful lot
+like a traditional procedural program. This suggests that this series of transformations can be used to
+compile a program in a language like Scheme into one in a language like C! </p></li>
+</ol>
+</div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+  </article>
+</body>
