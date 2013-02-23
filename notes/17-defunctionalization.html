@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>17-defunctionalization.scala</title>
+  <link rel="stylesheet" href="../recources/style.css">
+</head>
+<body>
+  <a href="https://github.com/klauso/PLT2012"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
+  <header>
+  <nav>
+    <ul>    
+        <li><a href="10-gc.html">10-gc.scala</a></li>
+        <li><a href="11-syntacticvsmeta.html">11-syntacticvsmeta.scala</a></li>
+        <li><a href="12-churchencoding.html">12-churchencoding.scala</a></li>
+        <li><a href="13-cpstransformation.html">13-cpstransformation.scala</a></li>
+        <li><a href="14-cpstransformation2.html">14-cpstransformation2.scala</a></li>
+        <li><a href="16-firstclasscontinuations.html">16-firstclasscontinuations.scala</a></li>
+        <li><a href="17-defunctionalization.html">17-defunctionalization.scala</a></li>
+        <li><a href="18-abstractmachines.html">18-abstractmachines.scala</a></li>
+        <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="20-normalization.html">20-normalization.scala</a></li>
+        <li><a href="21-OO.html">21-OO.scala</a></li>
+        <li><a href="26-OO-typed.html">26-OO-typed.scala</a></li>
+        <li><a href="3-wae.html">3-wae.scala</a></li>
+        <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
+        <li><a href="5-fae.html">5-fae.scala</a></li>
+        <li><a href="6-lcfae.html">6-lcfae.scala</a></li>
+        <li><a href="8-rcfae.html">8-rcfae.scala</a></li>
+        <li><a href="9-bcfae.html">9-bcfae.scala</a></li>
+    </ul>
+  </nav>
+  </header>
+  <article id="documentation">
+    <section id='section-1'>
+      <div class="docs"><p>These are lecture notes for the &ldquo;Programming Languages and Types&rdquo; course by
+Klaus Ostermann at the University of Marburg</p>
+
+<p>The material in these notes is based on:</p>
+<blockquote>
+<p>John C. Reynolds: Definitional Interpreters for Higher-Order Programming
+Languages.  Higher-Order and Symbolic Computation 11(4): 363-397 (1998)</p>
+</blockquote>
+<p>Please comment/correct/improve these notes via github. Proposals or
+questions can be submitted as an &ldquo;issue&rdquo;; proposals for
+corrections/extensions/improvements can be submitted as a &ldquo;pull request&rdquo;.
+You can of course also send an email to Klaus Ostermann</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-2'>
+      <div class="docs"><p>In the discussion of syntactic interpretation vs meta interpretation we
+have learned that we only learn something about (and control) a language
+feature if we choose syntactic interpretation.</p>
+
+<p>Today we want to discuss techniques with which we can make our interpreter
+so syntactic that it corresponds to an abstract machine: A machine with a
+(possibly infinite) set of states and a simple transition relation between
+the states.</p>
+
+<p>We already know the technique with which we can take control over the call
+stack management: CPS transformation. After CPS-transforming the
+interpreter, we do not rely on the order of evaluation and call stack
+management of the meta language anymore.  We replicate its definition here:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">App</span><span class="o">(</span><span class="n">funExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">argExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+
+<span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Value</span>
+<span class="k">type</span> <span class="kt">Env</span> <span class="o">=</span> <span class="nc">Map</span><span class="o">[</span><span class="kt">Symbol</span>, <span class="kt">Value</span><span class="o">]</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Fun</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Value</span>
+
+<span class="k">object</span> <span class="nc">CPSTransformed</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">eval</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">Value</span> <span class="o">=&gt;</span> <span class="n">T</span><span class="o">)</span><span class="k">:</span> <span class="kt">T</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span>
+      <span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">lv</span> <span class="k">=&gt;</span> 
+        <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">rv</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">lv</span><span class="o">,</span> <span class="n">rv</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+          <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span> <span class="o">+</span> <span class="n">v2</span><span class="o">))</span>
+          <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span>
+        <span class="o">}</span> 
+      <span class="o">))</span>
+    <span class="k">case</span> <span class="n">f</span><span class="nd">@Fun</span><span class="o">(</span><span class="n">param</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span>
+      <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">cl</span> <span class="k">=&gt;</span> <span class="n">cl</span> <span class="k">match</span> <span class="o">{</span>
+        <span class="k">case</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">closureEnv</span><span class="o">)</span> <span class="k">=&gt;</span>
+          <span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">av</span> <span class="k">=&gt;</span> 
+            <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">body</span><span class="o">,</span> <span class="n">closureEnv</span> <span class="o">+</span> <span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">param</span> <span class="o">-&gt;</span> <span class="n">av</span><span class="o">),</span> <span class="n">k</span><span class="o">))</span>
+        <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+      <span class="o">})</span>
+  <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-3'>
+      <div class="docs"><p>However, the CPS-transformed interpreter still uses high-level features of
+the meta-language, most notably first-class functions. We will now
+introduce one transformation that can be used to transform a function using
+higher-order functions into one using only first-order functions.  It is
+general program transformation technique, not restricted only to
+interpreters.</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-4'>
+      <div class="docs"><hr>
+
+<p>Extra material starts</p>
+
+<hr>
+
+<p>The first of these techniques is <em>lambda lifting</em>, also known as <em>closure
+conversion</em>.  The goal of lambda lifting is to turn local functions into
+top-level functions.  That is, all &ldquo;lambdas&rdquo; only occur at the top-level.
+Variables in the local environment that are normally stored in the
+function&rsquo;s closure are instead passed as parameters to the top-level
+function.</p>
+
+<p>Lambda lifting is accomplished by the following steps:</p>
+
+<ol>
+<li>Invent a new and unique name for each function that is not a top-level
+function.<br></li>
+<li>Create a function with this name. Its body is the body of the
+former local function.  Such a function will contain free variables.<br></li>
+<li>Add a parameter to so-obtained top-level function for each free variable in
+its body.  Thus it becomes a higher-order function that returns a function
+when passed these arguments.<br></li>
+<li>Replace the local function by a call to
+the new top-level function and pass the corresponding local context via the
+arguments created in step 3.</li>
+</ol>
+
+<p><strong>Example:</strong> Let&rsquo;s lambda-lift the functions y =&gt; y + n and y =&gt; y * n in</p></div>
+      <div class="code"><code class='highlight'><pre> 
+<span class="k">def</span> <span class="n">map</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=&gt;</span> <span class="nc">Int</span><span class="o">,</span> <span class="n">xs</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="n">xs</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Nil</span> <span class="k">=&gt;</span> <span class="nc">Nil</span>
+  <span class="k">case</span> <span class="o">(</span><span class="n">x</span> <span class="o">::</span> <span class="n">xs</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">f</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="o">::</span> <span class="n">map</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">xs</span><span class="o">)</span>
+<span class="o">}</span>
+
+<span class="k">def</span> <span class="n">addAndMultNToList</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">xs</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span> <span class="k">=</span> <span class="n">map</span><span class="o">(</span><span class="n">y</span> <span class="k">=&gt;</span> <span class="n">y</span> <span class="o">*</span> <span class="n">n</span><span class="o">,</span> <span class="n">map</span><span class="o">(</span><span class="n">y</span> <span class="k">=&gt;</span> <span class="n">y</span> <span class="o">+</span> <span class="n">n</span><span class="o">,</span> <span class="n">xs</span><span class="o">))</span> </pre></code></div>
+    </section>
+    <section id='section-5'>
+      <div class="docs"><p>We create two new top-level functions. Let&rsquo;s call them <code>f</code> and <code>g</code> Their
+bodies are respectively <code>y =&gt; y + n</code> and <code>y =&gt; y * n</code>. We add a parameter
+for each free variable. In the example, the free variable is <code>n</code> in both
+cases:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">f</span><span class="o">(</span><span class="n">n</span> <span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="o">(</span><span class="n">y</span> <span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">y</span> <span class="o">+</span> <span class="n">n</span>
+<span class="k">def</span> <span class="n">g</span><span class="o">(</span><span class="n">n</span> <span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="o">(</span><span class="n">y</span> <span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">y</span> <span class="o">*</span> <span class="n">n</span></pre></code></div>
+    </section>
+    <section id='section-6'>
+      <div class="docs"><p>or shorter:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">f</span><span class="o">(</span><span class="n">n</span> <span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="n">y</span> <span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">y</span> <span class="o">+</span> <span class="n">n</span>
+<span class="k">def</span> <span class="n">g</span><span class="o">(</span><span class="n">n</span> <span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="n">y</span> <span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">y</span> <span class="o">*</span> <span class="n">n</span></pre></code></div>
+    </section>
+    <section id='section-7'>
+      <div class="docs"><p>The local function can now be replaced by a call to the new global
+function.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">addAndMultNToList</span><span class="o">(</span><span class="n">n</span> <span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">xs</span> <span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span> <span class="k">=</span> <span class="n">map</span><span class="o">(</span><span class="n">g</span><span class="o">(</span><span class="n">n</span><span class="o">),</span> <span class="n">map</span><span class="o">(</span><span class="n">f</span><span class="o">(</span><span class="n">n</span><span class="o">),</span> <span class="n">xs</span><span class="o">))</span> </pre></code></div>
+    </section>
+    <section id='section-8'>
+      <div class="docs"><p>Let&rsquo;s now perform the same technique to the CPS-transformed interpreter
+given above.  It contains local functions in four places: two in the <code>Add</code>
+branch and two in the <code>App</code> branch. We call the corresponding top-level
+functions, from left to right, <code>addc1</code>, <code>addc2</code>, <code>appc1</code> and <code>appc2</code>.</p>
+
+<p>An interesting novelty in the interpreter is that some local functions
+(corresponding to <code>addc1</code> and <code>appc1</code>) create local functions themselves.
+This means that <code>addc1</code> must call <code>addc2</code> and <code>appc1</code> must call <code>appc2</code>.
+The rest of the transformation is a straightforward application of the
+transformation steps described above:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">object</span> <span class="nc">LambdaLifted</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">addc1</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">r</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">Value</span> <span class="o">=&gt;</span> <span class="n">T</span><span class="o">)(</span><span class="n">lv</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">=</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">addc2</span><span class="o">(</span><span class="n">lv</span><span class="o">,</span> <span class="n">k</span><span class="o">))</span>
+
+  <span class="k">def</span> <span class="n">addc2</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">lv</span><span class="k">:</span> <span class="kt">Value</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">Value</span> <span class="o">=&gt;</span> <span class="n">T</span><span class="o">)(</span><span class="n">rv</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">=</span> <span class="o">(</span><span class="n">lv</span><span class="o">,</span> <span class="n">rv</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span> <span class="o">+</span> <span class="n">v2</span><span class="o">))</span>
+    <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span> 
+  <span class="o">}</span>
+
+  <span class="k">def</span> <span class="n">appc1</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">a</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">Value</span> <span class="o">=&gt;</span> <span class="n">T</span><span class="o">)(</span><span class="n">cl</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">=</span> <span class="n">cl</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">closureEnv</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">appc2</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">closureEnv</span><span class="o">,</span> <span class="n">k</span><span class="o">))</span>
+    <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+  <span class="o">}</span>
+
+  <span class="k">def</span> <span class="n">appc2</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">Fun</span><span class="o">,</span> <span class="n">closureEnv</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">Value</span> <span class="o">=&gt;</span> <span class="n">T</span><span class="o">)(</span><span class="n">av</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span> <span class="k">=</span> 
+    <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">body</span><span class="o">,</span> <span class="n">closureEnv</span> <span class="o">+</span> <span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">param</span> <span class="o">-&gt;</span> <span class="n">av</span><span class="o">),</span> <span class="n">k</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="n">eval</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">Value</span> <span class="o">=&gt;</span> <span class="n">T</span><span class="o">)</span><span class="k">:</span> <span class="kt">T</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">addc1</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">k</span><span class="o">))</span>
+    <span class="k">case</span> <span class="n">f</span><span class="nd">@Fun</span><span class="o">(</span><span class="n">param</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">appc1</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">k</span><span class="o">))</span>
+  <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-9'>
+      <div class="docs"><p>The lambda-lifted interpreter contains no local functions anymore, but it
+still contains higher-order functions, since &lsquo;addc1 etc. return functions
+that are passed as parameters to other functions. *</p>
+
+<hr>
+
+<p>Extra material ends</p>
+
+<hr></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-10'>
+      <div class="docs"><p><em>Defunctionalization</em> is a program transformation technique that turns
+higher-order programs that have already been lambda-lifted into first-order
+programs that contain no higher-order functions anymore. </p>
+
+<p>Any program contains only finitely many function definitions. The idea of
+defunctionalization is to assign a unique identifier to each of these
+function definitions. The function &ldquo;dispatch&rdquo; then happens in a function
+<code>apply</code>, which receives the identifier corresponding to a function
+definition and dispatches the identifier to the right function body. Every
+function application within the program is then replaced by a call to the
+<code>apply</code> function with the function identifier as the first argument.</p>
+
+<p>In addition to the unique identifier, the <code>apply</code> function also needs
+bindings for the free variables in the function body. Hence we need to
+store the values for these free variables along with the unique identifier.</p>
+
+<p>Finally, the <code>apply</code> function needs to know about the argument to the
+function. These become additional parameters of the <code>apply</code> function.</p>
+
+<p>Let&rsquo;s illustrate defunctionalization in the <code>addAndMultNToList</code> example
+from above.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">FunctionValue</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">F</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">FunctionValue</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">G</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">FunctionValue</span>
+
+<span class="k">def</span> <span class="n">apply</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">FunctionValue</span><span class="o">,</span> <span class="n">y</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">f</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="n">F</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">y</span> <span class="o">+</span> <span class="n">n</span>
+  <span class="k">case</span> <span class="n">G</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">y</span> <span class="o">*</span> <span class="n">n</span>
+<span class="o">}</span>
+
+<span class="k">def</span> <span class="n">map</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">FunctionValue</span><span class="o">,</span> <span class="n">xs</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="n">xs</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Nil</span> <span class="k">=&gt;</span> <span class="nc">Nil</span>
+  <span class="k">case</span> <span class="o">(</span><span class="n">x</span> <span class="o">::</span> <span class="n">xs</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">apply</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">x</span><span class="o">)</span> <span class="o">::</span> <span class="n">map</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">xs</span><span class="o">)</span>
+<span class="o">}</span>
+
+<span class="k">def</span> <span class="n">addAndMultNToList</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">xs</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span> <span class="k">=</span> <span class="n">map</span><span class="o">(</span><span class="n">G</span><span class="o">(</span><span class="n">n</span><span class="o">),</span> <span class="n">map</span><span class="o">(</span><span class="n">F</span><span class="o">(</span><span class="n">n</span><span class="o">),</span> <span class="n">xs</span><span class="o">))</span>
+ </pre></code></div>
+    </section>
+    <section id='section-11'>
+      <div class="docs"><p>Let&rsquo;s now apply defunctionalization to our CPS-transformed interpreter:</p>
+</div>
+      <div class="code"><code class='highlight'><pre><span class="k">object</span> <span class="nc">Defunctionalized</span> <span class="o">{</span>
+  <span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span>
+  <span class="nc">case</span> <span class="k">class</span> <span class="nc">AddC1</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">r</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">extends</span> <span class="nc">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span>
+  <span class="k">case</span> <span class="k">class</span> <span class="nc">AddC2</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">lv</span><span class="k">:</span> <span class="kt">Value</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">extends</span> <span class="nc">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span>
+  <span class="k">case</span> <span class="k">class</span> <span class="nc">AppC1</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">a</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">extends</span> <span class="nc">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span>
+  <span class="k">case</span> <span class="k">class</span> <span class="nc">AppC2</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">Fun</span><span class="o">,</span> <span class="n">closureEnv</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">extends</span> <span class="nc">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span>
+
+  <span class="k">def</span> <span class="n">apply</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">fv</span><span class="k">:</span> <span class="kt">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">],</span> <span class="n">v</span><span class="k">:</span> <span class="kt">Value</span><span class="o">)</span><span class="k">:</span> <span class="kt">T</span>  <span class="o">=</span> <span class="n">fv</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">AddC1</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">k</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="nc">AddC2</span><span class="o">(</span><span class="n">v</span><span class="o">,</span> <span class="n">k</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">AddC2</span><span class="o">(</span><span class="n">lv</span><span class="o">,</span> <span class="n">k</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">lv</span><span class="o">,</span> <span class="n">v</span><span class="o">)</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="o">(</span><span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span><span class="o">),</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v2</span><span class="o">))</span> <span class="k">=&gt;</span> <span class="n">apply</span><span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">v1</span> <span class="o">+</span> <span class="n">v2</span><span class="o">))</span>
+      <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only add numbers&quot;</span><span class="o">)</span> 
+    <span class="o">}</span>
+    <span class="k">case</span> <span class="nc">AppC1</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">k</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">v</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">closureEnv</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="nc">AppC2</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">closureEnv</span><span class="o">,</span> <span class="n">k</span><span class="o">))</span>
+      <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;can only apply functions&quot;</span><span class="o">)</span>
+    <span class="o">}</span>
+    <span class="k">case</span> <span class="nc">AppC2</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">closureEnv</span><span class="o">,</span> <span class="n">k</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">body</span><span class="o">,</span> <span class="n">closureEnv</span> <span class="o">+</span> <span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">param</span> <span class="o">-&gt;</span> <span class="n">v</span><span class="o">),</span> <span class="n">k</span><span class="o">)</span>
+  <span class="o">}</span>
+
+  <span class="k">def</span> <span class="n">eval</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">env</span><span class="k">:</span> <span class="kt">Env</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">FunctionValue</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span><span class="k">:</span> <span class="kt">T</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">apply</span><span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="nc">NumV</span><span class="o">(</span><span class="n">n</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">apply</span><span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="n">env</span><span class="o">(</span><span class="n">x</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="nc">AddC1</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">k</span><span class="o">))</span>
+    <span class="k">case</span> <span class="n">f</span><span class="nd">@Fun</span><span class="o">(</span><span class="n">param</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">apply</span><span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="nc">ClosureV</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">eval</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="nc">AppC1</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">env</span><span class="o">,</span> <span class="n">k</span><span class="o">))</span>
+  <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+  </article>
+</body>

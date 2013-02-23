@@ -14,7 +14,14 @@
         <li><a href="11-syntacticvsmeta.html">11-syntacticvsmeta.scala</a></li>
         <li><a href="12-churchencoding.html">12-churchencoding.scala</a></li>
         <li><a href="13-cpstransformation.html">13-cpstransformation.scala</a></li>
+        <li><a href="14-cpstransformation2.html">14-cpstransformation2.scala</a></li>
+        <li><a href="16-firstclasscontinuations.html">16-firstclasscontinuations.scala</a></li>
+        <li><a href="17-defunctionalization.html">17-defunctionalization.scala</a></li>
+        <li><a href="18-abstractmachines.html">18-abstractmachines.scala</a></li>
         <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="20-normalization.html">20-normalization.scala</a></li>
+        <li><a href="21-OO.html">21-OO.scala</a></li>
+        <li><a href="26-OO-typed.html">26-OO-typed.scala</a></li>
         <li><a href="3-wae.html">3-wae.scala</a></li>
         <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
         <li><a href="5-fae.html">5-fae.scala</a></li>
@@ -55,11 +62,14 @@ be submitted as a &ldquo;pull request&rdquo;. You can of course also send an ema
 
 <p>Even this &ldquo;addition server&rdquo; is difficult to implement. Because http is a stateless protocol (for good reasons),
 every web program is basically forced to terminate after every request. This means that 
-the Web developer must turn this application into three programs:
-(a) The first program displays the first form.
-(b) The second program consumes the form values from the first form, and generates the second form.
-&copy; The third program consumes the form values from the second form, computes the output, and
-generates the result.</p>
+the Web developer must turn this application into three programs:</p>
+
+<ol>
+<li>The first program displays the first form.</li>
+<li>The second program consumes the form values from the first form, and generates the second form.</li>
+<li>The third program consumes the form values from the second form, computes the output, and
+generates the result.</li>
+</ol>
 
 <p>Because the value entered in the first form is needed by the third program to compute its output, this
 value must somehow be transmitted between from the first program to the third. This is typically done
@@ -75,7 +85,8 @@ the application can compute the wrong answer. </p>
 An actual web program is of course more complicated, but this primitive model of web
 programming is sufficient to explain the problem.</p></div>
       <div class="code"><code class='highlight'><pre> 
-<span class="k">def</span> <span class="n">webdisplay</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Nothing</span> <span class="o">=</span> <span class="o">{</span> <span class="c1">// we use the return type &quot;Nothing&quot; for functions that will never return (normally)</span>
+<span class="c1">// we use the return type `Nothing` for functions that will never return (normally)</span>
+<span class="k">def</span> <span class="n">webdisplay</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Nothing</span> <span class="o">=</span> <span class="o">{</span> 
   <span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="o">)</span>
   <span class="n">sys</span><span class="o">.</span><span class="n">error</span><span class="o">(</span><span class="s">&quot;program terminated&quot;</span><span class="o">)</span>
 <span class="o">}</span>
@@ -97,19 +108,24 @@ called <em>continuation</em>.</p>
 
 <p>Let&rsquo;s consider the continuation at the point of the first interaction in the original program,</p>
 
-<p>def prog = {
-    println(inputNumber() + inputNumber())<br>
-  }</p>
+<pre><code>def prog = {
+  println(inputNumber() + inputNumber())  
+}
+</code></pre>
 
 <p>The pending computation (or, continuation in the following) is to take the result of the first
 inputNumber invocation, add to it the result of the second invocation, and display it.
-We can express the continuation as a function:</p></div>
-      <div class="code"><code class='highlight'><pre><span class="k">val</span> <span class="n">cont1</span> <span class="k">=</span> <span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">println</span><span class="o">(</span><span class="n">n</span> <span class="o">+</span> <span class="n">inputNumber</span><span class="o">(</span><span class="s">&quot;Second number&quot;</span><span class="o">))</span></pre></code></div>
-    </section>
-    <section id='section-5'>
-      <div class="docs"><p>Similarly, the continuation at the second point of interaction is: 
-val cont2 = (m: Int) =&gt; println(n+m)
-where n is the result of the first input, which is stored in the closure of cont2</p>
+We can express the continuation as a function:</p>
+
+<pre><code>val cont1 = (n: Int) =&gt; println(n + inputNumber(&ldquo;Second number&rdquo;))
+</code></pre>
+
+<p>Similarly, the continuation at the second point of interaction is:  </p>
+
+<pre><code>val cont2 = (m: Int) =&gt; println(n+m)
+</code></pre>
+
+<p>where n is the result of the first input, which is stored in the closure of cont2</p>
 
 <p>Assuming an explicit representation of the continuation, it is obvious that we can now 
 write a version of webread, called webread_k, which takes the continuation as second parameter and invokes
@@ -139,24 +155,28 @@ a single integer value.</p></div>
 
 <span class="k">def</span> <span class="n">continue</span><span class="o">(</span><span class="n">kid</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">result</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">continuations</span><span class="o">(</span><span class="n">kid</span><span class="o">)(</span><span class="n">result</span><span class="o">)</span>  </pre></code></div>
     </section>
-    <section id='section-6'>
-      <div class="docs"><p>Using webread_k, we can now define our addition server as follows.
+    <section id='section-5'>
+      <div class="docs"><p>Using <code>webread_k</code>, we can now define our addition server as follows.
 If you try prog, ignore the stack traces.</p></div>
       <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">webprog</span> <span class="k">=</span> <span class="n">webread_k</span><span class="o">(</span><span class="s">&quot;enter first number&quot;</span><span class="o">,</span> <span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span>
              <span class="n">webread_k</span><span class="o">(</span><span class="s">&quot;enter second number&quot;</span><span class="o">,</span> <span class="o">(</span><span class="n">m</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">webdisplay</span><span class="o">(</span><span class="s">&quot;The sum of &quot;</span><span class="o">+</span><span class="n">n</span><span class="o">+</span><span class="s">&quot; and &quot;</span><span class="o">+</span><span class="n">m</span><span class="o">+</span><span class="s">&quot; is &quot;</span><span class="o">+(</span><span class="n">n</span><span class="o">+</span><span class="n">m</span><span class="o">))))</span></pre></code></div>
     </section>
-    <section id='section-7'>
-      <div class="docs"><p>For instance, try:
-scala&gt; webprog          &mdash; yields some continuation id c1
-scala&gt; continue(c1,5)   &mdash; yields some continuation id c2<br>
-scala&gt; continue(c2,7)  </p>
+    <section id='section-6'>
+      <div class="docs"><p>For instance, try:</p>
 
-<p>This should yield the result 12 as expected. But also try:
-scala&gt; webprog          &mdash; yields some continuation id c1
+<pre><code>scala&gt; webprog          &mdash; yields some continuation id c1
+scala&gt; continue(c1,5)   &mdash; yields some continuation id c2  
+scala&gt; continue(c2,7)  
+</code></pre>
+
+<p>This should yield the result 12 as expected. But also try:</p>
+
+<pre><code>scala&gt; webprog          &mdash; yields some continuation id c1
 scala&gt; contine(c1,5)    &mdash; yields some continuation id c2
 scala&gt; contine(c1,6)    &mdash; yields some continuation id c3
 scala&gt; continue(c2,3)   &mdash; should yield 8
-scala&gt; continue(c3,3)   &mdash; should yield 9</p>
+scala&gt; continue(c3,3)   &mdash; should yield 9
+</code></pre>
 
 <p>The style of programming in webprog, which is obviously more complicated than the logical 
 structure of progSimple, shows up in many practical programming scenarios &ndash; server-side web programming
@@ -178,7 +198,7 @@ numbers, the user enters n numbers, e.g., the prices of a list of n items.</p>
 
 <span class="k">def</span> <span class="n">test</span> <span class="k">=</span> <span class="n">println</span><span class="o">(</span><span class="s">&quot;Total sum: &quot;</span><span class="o">+</span><span class="n">allCosts</span><span class="o">(</span><span class="n">testData</span><span class="o">))</span></pre></code></div>
     </section>
-    <section id='section-8'>
+    <section id='section-7'>
       <div class="docs"><p>This version of allCosts is clearly not web-friendly, because it uses inputNumber,
 which we do not know how to implement for the web.</p>
 
@@ -190,24 +210,25 @@ a continuation, that represents the rest of the pending computation. To signify 
 the convention of appending _k to the name of the procedure and k to name the continuation parameter.</p></div>
       <div class="code"><code class='highlight'><pre> </pre></code></div>
     </section>
+    <section id='section-8'>
+      <div class="docs"><p>Here is a first attempt to define <code>allCosts_k</code>.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="c1">// def allCosts_k(itemList: List[String], k: Int =&gt; Nothing) : Nothing = itemList match {</span>
+<span class="c1">//   case Nil =&gt; 0</span>
+<span class="c1">//   case x :: rest =&gt; webread_k(&quot;Cost of item &quot;+x+&quot;:&quot;, n =&gt; n+allCosts_k(rest,k)) </span>
+<span class="c1">// }</span></pre></code></div>
+    </section>
     <section id='section-9'>
-      <div class="docs"><p>Here is a first attempt to define allCosts_k.</p>
-
-<p>def allCosts<em>k(itemList: List[String], k: Int =&gt; Nothing) : Nothing = itemList match {
-   case Nil =&gt; 0
-   case x :: rest =&gt; webread</em>k(&ldquo;Cost of item &rdquo;+x+&ldquo;:&rdquo;, n =&gt; n+allCosts_k(rest,k)) 
-}</p>
-
-<p>This may look reasonable, but it suffers from an immediate problem. When the recursive call occurs, if
+      <div class="docs"><p>This may look reasonable, but it suffers from an immediate problem. When the recursive call occurs, if
 the list had two or more elements, then there will immediately be another Web interaction. Because this will
 terminate the program, the pending addition will be lost! Therefore, the addition of n has to move into the
-continuation fed to allCosts_k. In code:</p>
-
-<p>def allCosts<em>k(itemList: List[String], k: Int =&gt; Nothing) : Nothing = itemList match {
-   case Nil =&gt; 0
-   case x :: rest =&gt; webread</em>k(&ldquo;Cost of item &rdquo;+x+&ldquo;:&rdquo;, n =&gt; allCosts<em>k(rest,m =&gt; k(m+n))) 
-}
-That is, the receiver of the Web interaction is invoked with the cost of the first item. When allCosts</em>k is invoked
+continuation fed to <code>allCosts_k</code>. In code:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="c1">// def allCosts_k(itemList: List[String], k: Int =&gt; Nothing) : Nothing = itemList match {</span>
+<span class="c1">//   case Nil =&gt; 0</span>
+<span class="c1">//   case x :: rest =&gt; webread_k(&quot;Cost of item &quot;+x+&quot;:&quot;, n =&gt; allCosts_k(rest,m =&gt; k(m+n))) </span>
+<span class="c1">// }</span></pre></code></div>
+    </section>
+    <section id='section-10'>
+      <div class="docs"><p>That is, the receiver of the Web interaction is invoked with the cost of the first item. When <code>allCosts_k</code> is invoked
 recursively, it is applied to the rest of the list. Its receiver must therefore receive the tally of costs of the
 remaining items. That explains the pattern in the receiver.</p>
 
@@ -215,7 +236,7 @@ remaining items. That explains the pattern in the receiver.</p>
 each recursive invocation, but what ever invokes them?</p>
 
 <p>Here is the same problem from a different angle (that also answers the question above). Notice that each
-recursive invocation of allCosts_k takes place in the aftermath of a Web interaction. We have already seen how
+recursive invocation of <code>allCosts_k</code> takes place in the aftermath of a Web interaction. We have already seen how
 the act of Web interaction terminates the pending computation. Therefore, when the list empties, where
 is the value 0 going? Presumably to the pending computation, but there is none. Any computation that
 would have been pending has now been recorded in k, which is expecting a value. Therefore, the correct
@@ -228,7 +249,7 @@ transformation of this procedure is:</p></div>
 
 <span class="k">def</span> <span class="n">testweb</span> <span class="k">=</span> <span class="n">allCosts_k</span><span class="o">(</span><span class="n">testData</span><span class="o">,</span> <span class="n">m</span> <span class="k">=&gt;</span> <span class="n">webdisplay</span><span class="o">(</span><span class="s">&quot;Total sum: &quot;</span><span class="o">+</span><span class="n">m</span><span class="o">))</span></pre></code></div>
     </section>
-    <section id='section-10'>
+    <section id='section-11'>
       <div class="docs"><p>Let&rsquo;s now consider the case that we have used a library function for the iteration in allCosts, namely
 the map function, which we replicate here.</p></div>
       <div class="code"><code class='highlight'><pre> <span class="k">def</span> <span class="n">map</span><span class="o">[</span><span class="kt">S</span>,<span class="kt">T</span><span class="o">](</span><span class="n">c</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">S</span><span class="o">],</span> <span class="n">f</span><span class="k">:</span> <span class="kt">S</span><span class="o">=&gt;</span><span class="n">T</span><span class="o">)</span> <span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span> <span class="k">=</span> <span class="n">c</span> <span class="k">match</span> <span class="o">{</span>
@@ -236,18 +257,18 @@ the map function, which we replicate here.</p></div>
    <span class="k">case</span> <span class="n">x</span> <span class="o">::</span> <span class="n">rest</span> <span class="k">=&gt;</span> <span class="n">f</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="o">::</span> <span class="n">map</span><span class="o">(</span><span class="n">rest</span><span class="o">,</span><span class="n">f</span><span class="o">)</span> 
 <span class="o">}</span></pre></code></div>
     </section>
-    <section id='section-11'>
+    <section id='section-12'>
       <div class="docs"><p>Using map, we can rephrase allCosts as follows.</p></div>
       <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">allCosts2</span><span class="o">(</span><span class="n">itemList</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="n">map</span><span class="o">(</span><span class="n">itemList</span><span class="o">,</span> <span class="o">(</span><span class="n">x</span><span class="k">:</span><span class="kt">String</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">inputNumber</span><span class="o">(</span><span class="s">&quot;Cost of item &quot;</span><span class="o">+</span><span class="n">x</span><span class="o">+</span><span class="s">&quot;:&quot;</span><span class="o">)).</span><span class="n">sum</span></pre></code></div>
     </section>
-    <section id='section-12'>
-      <div class="docs"><p>What if we we want to use map in allCosts_k?</p>
+    <section id='section-13'>
+      <div class="docs"><p>What if we we want to use map in <code>allCosts_k</code>?</p>
 
-<p>Just using webread<em>k in place of inputNumber will not work, since webread</em>k expects an additional parameter.
+<p>Just using <code>webread_k</code> in place of <code>inputNumber</code> will not work, since <code>webread_k</code> expects an additional parameter.
 Obviously we must somehow modify the definition of map. But what can we pass as second parameter in the call
-to f? </p>
+to <code>f</code>? </p>
 
-<p>Insight: We must perform the &ldquo;web transformation&rdquo; to map as well. We call the reslt map_k. Here is the code:</p></div>
+<p><strong>Insight:</strong> We must perform the &ldquo;web transformation&rdquo; to map as well. We call the result <code>map_k</code>. Here is the code:</p></div>
       <div class="code"><code class='highlight'><pre> 
 <span class="k">def</span> <span class="n">map_k</span><span class="o">[</span><span class="kt">S</span>,<span class="kt">T</span><span class="o">](</span><span class="n">c</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">S</span><span class="o">],</span> <span class="n">f</span><span class="k">:</span> <span class="o">(</span><span class="kt">S</span><span class="o">,</span><span class="kt">T</span><span class="o">=&gt;</span><span class="nc">Nothing</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Nothing</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Nothing</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Nothing</span> <span class="o">=</span> <span class="n">c</span> <span class="k">match</span> <span class="o">{</span>
    <span class="k">case</span> <span class="nc">Nil</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="nc">Nil</span><span class="o">)</span>
@@ -258,8 +279,8 @@ to f? </p>
    <span class="n">map_k</span><span class="o">(</span><span class="n">itemList</span><span class="o">,</span> <span class="o">(</span><span class="n">x</span><span class="k">:</span><span class="kt">String</span><span class="o">,</span><span class="n">k2</span><span class="k">:</span><span class="kt">Int</span><span class="o">=&gt;</span><span class="nc">Nothing</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">webread_k</span><span class="o">(</span><span class="s">&quot;Cost of item &quot;</span><span class="o">+</span><span class="n">x</span><span class="o">+</span><span class="s">&quot;:&quot;</span><span class="o">,</span> <span class="n">k2</span><span class="o">),(</span><span class="n">l</span><span class="k">:</span><span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span> <span class="k">=&gt;</span> <span class="n">k</span><span class="o">(</span><span class="n">l</span><span class="o">.</span><span class="n">sum</span><span class="o">))</span> 
 <span class="o">}</span></pre></code></div>
     </section>
-    <section id='section-13'>
-      <div class="docs"><p>Implications of the &ldquo;web transformation&rdquo;: </p>
+    <section id='section-Implications_of_the_&amp;ldquo;web_transformation&amp;rdquo;'>
+      <div class="docs"><h2>Implications of the &ldquo;web transformation&rdquo; </h2>
 
 <ol>
 <li><p>We have had to make decisions about the order of evaluation. That is, we had to choose whether

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>14-cpstransformation2.scala</title>
+  <link rel="stylesheet" href="../recources/style.css">
+</head>
+<body>
+  <a href="https://github.com/klauso/PLT2012"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
+  <header>
+  <nav>
+    <ul>    
+        <li><a href="10-gc.html">10-gc.scala</a></li>
+        <li><a href="11-syntacticvsmeta.html">11-syntacticvsmeta.scala</a></li>
+        <li><a href="12-churchencoding.html">12-churchencoding.scala</a></li>
+        <li><a href="13-cpstransformation.html">13-cpstransformation.scala</a></li>
+        <li><a href="14-cpstransformation2.html">14-cpstransformation2.scala</a></li>
+        <li><a href="16-firstclasscontinuations.html">16-firstclasscontinuations.scala</a></li>
+        <li><a href="17-defunctionalization.html">17-defunctionalization.scala</a></li>
+        <li><a href="18-abstractmachines.html">18-abstractmachines.scala</a></li>
+        <li><a href="2-ae.html">2-ae.scala</a></li>
+        <li><a href="20-normalization.html">20-normalization.scala</a></li>
+        <li><a href="21-OO.html">21-OO.scala</a></li>
+        <li><a href="26-OO-typed.html">26-OO-typed.scala</a></li>
+        <li><a href="3-wae.html">3-wae.scala</a></li>
+        <li><a href="4-f1wae.html">4-f1wae.scala</a></li>
+        <li><a href="5-fae.html">5-fae.scala</a></li>
+        <li><a href="6-lcfae.html">6-lcfae.scala</a></li>
+        <li><a href="8-rcfae.html">8-rcfae.scala</a></li>
+        <li><a href="9-bcfae.html">9-bcfae.scala</a></li>
+    </ul>
+  </nav>
+  </header>
+  <article id="documentation">
+    <section id='section-1'>
+      <div class="docs"><p>These are lecture notes for the &ldquo;Programming Languages and Types&rdquo; course by Klaus Ostermann 
+at the University of Marburg</p>
+
+<p>loosely based on Sec. 18 of &ldquo;Programming Languages: Application and Interpretation&rdquo; by
+Shriram Krishnamurthi</p>
+
+<p>Please comment/correct/improve these notes via github. Proposals or questions can
+be submitted as an &ldquo;issue&rdquo;; proposals for corrections/extensions/improvements can
+be submitted as a &ldquo;pull request&rdquo;. You can of course also send an email to Klaus Ostermann</p></div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+    <section id='section-2'>
+      <div class="docs"><p>Today&rsquo;s goal is to make the &ldquo;web&rdquo; (or rather, CPS) transformation which we applied informally
+in the previous lecture formal.</p>
+
+<p>In the previous lecture we have seen that we had to translate the following program:</p>
+
+<pre><code>println(&ldquo;The sum is: &rdquo;+ (inputNumber(&ldquo;First number:&rdquo; ) + inputNumber(&ldquo;Second number&rdquo;)))
+</code></pre>
+
+<p>into this program:</p>
+
+<pre><code>webread_k(&ldquo;First number&rdquo;, (n) =&gt;
+  webread_k(&ldquo;Second number:&rdquo;, (m) =&gt; webdisplay(&ldquo;The sum is: &rdquo;+(n+m))))
+</code></pre>
+
+<p>This hand-translation is sufficient if this expression is the entire program.</p>
+
+<p>If we wish to use it as a sub-expression in a larger program, this does not suffice,
+because there may be a pending computation outside its own evaluation. For that
+reason, the program has to send its result to a continuation instead of returning it:</p>
+
+<pre><code>k =&gt; webread_k(&ldquo;First number&rdquo;, (n) =&gt;
+  webread_k(&ldquo;Second number:&rdquo;, (m) =&gt; webdisplay(&ldquo;The sum is: &rdquo;+k(n+m))))
+</code></pre>
+
+<p>This version can be employed in the transformation of a larger program. In the special
+case where this is the entire program we can apply the transformed term to the identity
+function to get the same result as the previous manual transformation.</p>
+
+<p>In general, every term, when converted to CPS, will be have the following properties
+(see O. Danvy, Three Steps for the CPS Transformation, 1991):</p>
+
+<ol>
+<li>The values of all intermediate applications are given a name</li>
+<li>The evaluation of these applications is sequentialized based on a traversal of their
+abstract syntax tree.</li>
+<li>The results of the transformation are procedures that expect a continuation parameter &ndash;
+a lambda abstraction whose application to intermediate values yields the final result 
+of the whole evaluation.</li>
+</ol>
+
+<p>Let us now look at the transformation of a function application. For instance, let us 
+consider the term </p>
+
+<pre><code>f(a)(g(b))
+</code></pre>
+
+<p>The transformation of the function argument, f(a), should be</p>
+
+<pre><code>f_k(a, fval =&gt; &hellip;)
+</code></pre>
+
+<p>Similarly, the transformation of the argument position would be:</p>
+
+<pre><code>g_k(b, aval =&gt; &hellip;)
+</code></pre>
+
+<p>Given these two values, fval and aval, we can now perform the application, like so:</p>
+
+<pre><code>k(fval(aval))
+</code></pre>
+
+<p>However, this will not work, because if fval makes a web interaction itself it will not return.
+Instead, k must be given as an argument to the function, like so:</p>
+
+<pre><code>k =&gt; f_k(a, fval =&gt; g_k(b, aval =&gt; fval(aval,k))) 
+</code></pre>
+
+<p>Reading this sequentially, it says to evaluate the function expression, store its value in fval,
+then evaluate the argument, store its value in aval, and finally invoke the function on the argument.
+This function&rsquo;s continuation is the same as that of the function application itself.</p>
+
+<p>What about variables and constants? Since every term in CPS must be a function that consumes a continuation,
+the constant is simply send to the continuation. For instance, the CPS transformation of 
+the number 3 is <code>k =&gt; k(3)</code></p>
+
+<p>What about function definitions, such as x =&gt; x ? Since every lambda expression is also a constant,
+we might be tempted to use the same rule as above, i.e.,</p>
+
+<pre><code>k =&gt; k(x =&gt; x)
+</code></pre>
+
+<p>However, the transformation is more subtle. A function application invokes the function on two arguments, whereas
+the original function <code>x =&gt; x</code> consumes only one. What is the second argument?</p>
+
+<p><strong>Answer:</strong> It is the <em>dynamic</em> continuation, i.e., the continuation at the time of the function <em>application</em>
+(as opposed to its definition). We cannot ignore this continuation: It is the stack active at the point
+of function invocation, so we want to preserve it. This is in contrast to what we did with environments,
+and more in line with our treatment of the store. The transformed version hence reads:</p>
+
+<pre><code>k =&gt; k( (x,dynk) =&gt; (k =&gt; k(x))(dynk))
+</code></pre>
+
+<p>which is equivalent (when the inner application finally happens) to:</p>
+
+<pre><code>k =&gt; k( (x,dynk) =&gt; dynk(x))
+</code></pre>
+
+<p>This is a function that accepts a value and a dynamic continuation and sends the value to that continuation.</p>
+
+<p>We are now reade to write this transformation formally, as a source-to-source transformation. This transformation
+could have the type <code>cps(e: Exp): Exp</code>, but we choose a different type for two reasons:</p>
+
+<ol>
+<li>In CPS we need function definitions and applications with two arguments instead of one. This could be addressed
+by adding new syntax.</li>
+<li>More importantly, we want the invariants of the CPS format to be clearly visible in the syntax definition of the
+result, most importantly the fact that all function applications are tail calls.</li>
+</ol>
+
+<p>For this reason, we define a special new syntax for CPS-transformed terms. Here is our original syntax:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Id</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Add</span><span class="o">(</span><span class="n">lhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">rhs</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">param</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">App</span> <span class="o">(</span><span class="n">funExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">argExpr</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">num2exp</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">id2exp</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="nc">Id</span><span class="o">(</span><span class="n">s</span><span class="o">)</span></pre></code></div>
+    </section>
+    <section id='section-3'>
+      <div class="docs"><p>For CPS transformed terms, we define two different syntactic categories: Values (CPSVal) and Expressions (CPSExp).
+The syntax makes clear that all arguments of a function application are values &ndash; hence no nesting of applications
+can occur. Furthermore, the syntax differentiates between defining an ordinary function (CPSFun) which, when translated,
+gets an additional continuation parameter, and Continuation Functions (CPSCont), which are the result of the CPS 
+transformation. Correspondingly, we have two different forms of applications, CPSContApp and CPSFunApp.</p>
+
+<p>Here is the formal definition:</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">CPSVal</span>
+<span class="k">abstract</span> <span class="k">class</span> <span class="nc">CPSExp</span> <span class="k">extends</span> <span class="nc">CPSVal</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">CPSNum</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">CPSVal</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">CPSCont</span><span class="o">(</span><span class="n">v</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">CPSExp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">CPSVal</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">CPSFun</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">CPSExp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">CPSVal</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">CPSVar</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">CPSVal</span> <span class="o">{</span> <span class="k">override</span> <span class="k">def</span> <span class="n">toString</span> <span class="k">=</span> <span class="n">x</span><span class="o">.</span><span class="n">toString</span> <span class="o">}</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">id2cpsexp</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">=</span> <span class="nc">CPSVar</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+
+<span class="k">case</span> <span class="k">class</span> <span class="nc">CPSContApp</span><span class="o">(</span><span class="n">k</span><span class="k">:</span> <span class="kt">CPSVal</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">CPSVal</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">CPSExp</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">CPSFunApp</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">CPSVar</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">CPSVar</span><span class="o">,</span> <span class="n">k</span><span class="k">:</span> <span class="kt">CPSVar</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">CPSExp</span> <span class="c1">// the arguments are even CPSVar and not only CPSVal!</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">CPSAdd</span><span class="o">(</span><span class="n">l</span><span class="k">:</span> <span class="kt">CPSVar</span><span class="o">,</span> <span class="n">r</span><span class="k">:</span> <span class="kt">CPSVar</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">CPSExp</span></pre></code></div>
+    </section>
+    <section id='section-4'>
+      <div class="docs"><p>With these definitions, we are now ready to formalize the transformation described above.
+There is one technical issues: We need to introduce new names for binders into our program, such as &lsquo;k.
+We need to make sure that we do not accidentially capture existing names in the program. For this
+reason we need our freshName machinery we introduced in 5-fae.scala.</p></div>
+      <div class="code"><code class='highlight'><pre><span class="k">def</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Symbol</span><span class="o">]</span> <span class="k">=</span>  <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+   <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Set</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+   <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">l</span><span class="o">,</span><span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">l</span><span class="o">)</span> <span class="o">++</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
+   <span class="k">case</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">x</span><span class="o">,</span><span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">body</span><span class="o">)</span> <span class="o">-</span> <span class="n">x</span>
+   <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">f</span><span class="o">)</span> <span class="o">++</span> <span class="n">freeVars</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+   <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Set</span><span class="o">.</span><span class="n">empty</span>
+<span class="o">}</span>
+<span class="k">def</span> <span class="n">freshName</span><span class="o">(</span><span class="n">names</span><span class="k">:</span> <span class="kt">Set</span><span class="o">[</span><span class="kt">Symbol</span><span class="o">],</span> <span class="n">default</span><span class="k">:</span> <span class="kt">Symbol</span><span class="o">)</span> <span class="k">:</span> <span class="kt">Symbol</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="k">var</span> <span class="n">last</span> <span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="k">var</span> <span class="n">freshName</span> <span class="k">=</span> <span class="n">default</span>  
+  <span class="k">while</span> <span class="o">(</span><span class="n">names</span> <span class="n">contains</span> <span class="n">freshName</span><span class="o">)</span> <span class="o">{</span> <span class="n">freshName</span> <span class="k">=</span> <span class="nc">Symbol</span><span class="o">(</span><span class="n">default</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="n">last</span><span class="o">.</span><span class="n">toString</span><span class="o">);</span> <span class="n">last</span> <span class="o">+=</span> <span class="mi">1</span><span class="o">;</span> <span class="o">}</span>
+  <span class="n">freshName</span>
+<span class="o">}</span>
+
+<span class="k">def</span> <span class="n">cps</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">:</span> <span class="kt">CPSCont</span> <span class="o">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+   <span class="k">case</span> <span class="nc">Add</span><span class="o">(</span><span class="n">e1</span><span class="o">,</span><span class="n">e2</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+     <span class="k">val</span> <span class="n">k</span> <span class="k">=</span> <span class="n">freshName</span><span class="o">(</span><span class="n">freeVars</span><span class="o">(</span><span class="n">e</span><span class="o">),</span> <span class="-Symbol">&#39;k</span><span class="o">)</span>
+     <span class="k">val</span> <span class="n">lv</span> <span class="k">=</span> <span class="n">freshName</span><span class="o">(</span><span class="n">freeVars</span><span class="o">(</span><span class="n">e2</span><span class="o">),</span> <span class="-Symbol">&#39;lv</span><span class="o">)</span>
+     <span class="nc">CPSCont</span><span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="nc">CPSContApp</span><span class="o">(</span><span class="n">cps</span><span class="o">(</span><span class="n">e1</span><span class="o">),</span><span class="nc">CPSCont</span><span class="o">(</span><span class="n">lv</span><span class="o">,</span> <span class="nc">CPSContApp</span><span class="o">(</span><span class="n">cps</span><span class="o">(</span><span class="n">e2</span><span class="o">),</span> <span class="nc">CPSCont</span><span class="o">(</span><span class="-Symbol">&#39;rv</span><span class="o">,</span> <span class="nc">CPSContApp</span><span class="o">(</span><span class="n">k</span><span class="o">,</span><span class="nc">CPSAdd</span><span class="o">(</span><span class="-Symbol">&#39;rv</span><span class="o">,</span> <span class="n">lv</span><span class="o">)))))))</span>
+   <span class="o">}</span>  
+   <span class="k">case</span> <span class="nc">Fun</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+     <span class="k">val</span> <span class="n">k</span> <span class="k">=</span> <span class="n">freshName</span><span class="o">(</span><span class="n">freeVars</span><span class="o">(</span><span class="n">e</span><span class="o">),</span> <span class="-Symbol">&#39;k</span><span class="o">)</span>
+     <span class="k">val</span> <span class="n">dynk</span> <span class="k">=</span> <span class="n">freshName</span><span class="o">(</span><span class="n">freeVars</span><span class="o">(</span><span class="n">e</span><span class="o">),</span> <span class="-Symbol">&#39;dynk</span><span class="o">)</span>
+     <span class="nc">CPSCont</span><span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="nc">CPSContApp</span><span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="nc">CPSFun</span><span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">dynk</span><span class="o">,</span> <span class="nc">CPSContApp</span><span class="o">(</span><span class="n">cps</span><span class="o">(</span><span class="n">body</span><span class="o">),</span> <span class="n">dynk</span><span class="o">))))</span>
+   <span class="o">}</span>
+   <span class="k">case</span> <span class="nc">App</span><span class="o">(</span><span class="n">f</span><span class="o">,</span><span class="n">a</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+     <span class="k">val</span> <span class="n">k</span> <span class="k">=</span> <span class="n">freshName</span><span class="o">(</span><span class="n">freeVars</span><span class="o">(</span><span class="n">e</span><span class="o">),</span> <span class="-Symbol">&#39;k</span><span class="o">)</span>
+     <span class="k">val</span> <span class="n">fval</span> <span class="k">=</span> <span class="n">freshName</span><span class="o">(</span><span class="n">freeVars</span><span class="o">(</span><span class="n">a</span><span class="o">),</span> <span class="-Symbol">&#39;fval</span><span class="o">)</span>
+     <span class="nc">CPSCont</span><span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="nc">CPSContApp</span><span class="o">(</span><span class="n">cps</span><span class="o">(</span><span class="n">f</span><span class="o">),</span> <span class="nc">CPSCont</span><span class="o">(</span><span class="n">fval</span><span class="o">,</span> <span class="nc">CPSContApp</span><span class="o">(</span><span class="n">cps</span><span class="o">(</span><span class="n">a</span><span class="o">),</span> <span class="nc">CPSCont</span><span class="o">(</span><span class="-Symbol">&#39;aval</span><span class="o">,</span> <span class="nc">CPSFunApp</span><span class="o">(</span><span class="n">fval</span><span class="o">,</span> <span class="-Symbol">&#39;aval</span><span class="o">,</span> <span class="n">k</span><span class="o">))))))</span>
+   <span class="o">}</span>
+   <span class="k">case</span> <span class="nc">Id</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+     <span class="k">val</span> <span class="n">k</span> <span class="k">=</span> <span class="n">freshName</span><span class="o">(</span><span class="n">freeVars</span><span class="o">(</span><span class="n">e</span><span class="o">),</span> <span class="-Symbol">&#39;k</span><span class="o">)</span>
+     <span class="nc">CPSCont</span><span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="nc">CPSContApp</span><span class="o">(</span><span class="n">k</span><span class="o">,</span> <span class="nc">CPSVar</span><span class="o">(</span><span class="n">x</span><span class="o">)))</span>
+   <span class="o">}</span>
+   <span class="k">case</span> <span class="nc">Num</span><span class="o">(</span><span class="n">n</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">{</span>
+     <span class="k">val</span> <span class="n">k</span> <span class="k">=</span> <span class="n">freshName</span><span class="o">(</span><span class="n">freeVars</span><span class="o">(</span><span class="n">e</span><span class="o">),</span> <span class="-Symbol">&#39;k</span><span class="o">)</span>
+     <span class="nc">CPSCont</span><span class="o">(</span><span class="-Symbol">&#39;k</span><span class="o">,</span> <span class="nc">CPSContApp</span><span class="o">(</span><span class="-Symbol">&#39;k</span><span class="o">,</span><span class="nc">CPSNum</span><span class="o">(</span><span class="n">n</span><span class="o">)))</span>
+   <span class="o">}</span>
+<span class="o">}</span></pre></code></div>
+    </section>
+    <section id='section-5'>
+      <div class="docs"><p>This transformation is the so-called Fischer CPS transformation. There are many other CPS transformation algorithms.
+The Fischer CPS transformation is nice because it is so simple and because it is defined as one simple structural 
+recursion over the AST. Its main disadvantage is the existence of so-called &ldquo;administrative redexes&rdquo;. 
+An administrative redex is a function application whose operator is a &ldquo;continuation lambda&rdquo; &ndash; a lambda produced during
+CPS transformation that was not in the original program. Such function applications can be computed immediately because 
+the function which is called is known.</p>
+
+<p>For instance, cps(Add(2,3)) yields</p>
+
+<pre><code>CPSCont('k,
+  CPSContApp(
+    CPSCont('k,
+      CPSContApp('k,2)),
+    CPSCont('lv,
+      CPSContApp(
+        CPSCont('k,
+          CPSContApp('k,3)),
+        CPSCont('rv,
+          CPSAdd('rv,'lv))))))
+</code></pre>
+
+<p>instead of </p>
+
+<pre><code> CPSCont('k, CPSContApp('k, CPSAdd(2,3)))
+</code></pre>
+
+<p>Many more advanced CPS transformation algorithms try to avoid as many administrative redexes as possible.</p>
+</div>
+      <div class="code"><code class='highlight'><pre></pre></code></div>
+    </section>
+  </article>
+</body>
